@@ -6,7 +6,7 @@ SamePath is a student-focused mobile app designed to help users find classes and
 
 💡 Purpose
 
-This app was built to solve a common problem among students: walking to class alone, especially during early mornings or late nights. SamePath lets users:
+This app was built to solve a common problem among students. SamePath lets users:
 	•	Opt in to share their class schedules
 	•	Match routes with peers heading in the same direction at the same time
 	•	Prioritize privacy through user-controlled visibility
