@@ -1,53 +1,66 @@
-📍 SamePath (this is an original concept and personal project)
+📍 SamePath
 
-SamePath is a student-focused mobile app designed to help users find classes and free times with others who share similar schedules. It prioritizes privacy and opt-in route sharing, making it ideal for college students who want a more social and secure way to navigate campus.
+An original concept and personal project by Alexis Hirsch
+
+SamePath is a mobile app designed for college students to naturally connect with others who share similar daily paths across campus. Whether you’re walking to class, grabbing food, or heading to the gym, SamePath makes it easy to find overlap with classmates — without sacrificing privacy.
 
 ⸻
 
 💡 Purpose
 
-This app was built to solve a common problem among students. SamePath lets users:
-	•	Opt in to share their class schedules
-	•	Match routes with peers heading in the same direction at the same time
-	•	Prioritize privacy through user-controlled visibility
+SamePath solves a real student problem: it’s hard to meet people when everyone’s moving in different directions. The app lets users:
+	•	Enter their class schedules and availability
+	•	Match with others who share walking routes or downtime
+	•	Discover familiar faces on similar paths
+	•	Stay in control with opt-in sharing and privacy settings
+
+It’s not about constant location tracking — it’s about showing you who’s on a similar schedule.
 
 ⸻
 
 🔨 Tech Stack
-	•	React Native (UI & app logic)
-	•	Expo Go (used for development/testing)
-	•	Firebase or local storage (depending on current version — update if needed)
-	•	Figma (used for UI mockups and planning)
+	•	React Native – UI and core logic
+	•	Expo Go – Used for development and testing
+	•	Figma – UI design and wireframes
+	•	Firebase (planned) – Secure backend for schedules and accounts
+	•	Expo Contacts & Location APIs – For optional syncing and contextual features
 
 ⸻
 
-📱 Features
-	•	🗺️ Class Schedule Input: Users can input their class locations and times
-	•	🤝 Route Matching: Matches users based on location, timing, and walking paths
-	•	🔒 Privacy-First: Users must opt in to be discoverable
-	•	📱 Mobile UI: Built with student-friendly UX in mind for a clean and minimal experience
+📱 Key Features
+	•	🗓 Schedule Setup – Users input their classes and availability
+	•	🧭 Path Matching – Finds overlap in time + location with others
+	•	🔒 Privacy First – You choose what to share and when
+	•	🫂 Contact Syncing (Optional) – Helps surface familiar names first
+	•	📱 Clean Mobile UI – Minimal, friendly, and built for students
+	•	✅ Onboarding Flow – Easy startup with verification and privacy control
 
 ⸻
 
 🚧 Development Status
 
-SamePath is currently in development. It has been tested using Expo Go, and the core matching and scheduling logic is functional.
+SamePath is in active development and currently being tested using Expo Go.
 
-Plans are in place to:
-	•	Add user authentication
-	•	Store schedule data in a secure backend
-	•	Publish to the App Store for broader student use
+The following are working or in progress:
+	•	✅ VT email verification
+	•	✅ Password security and Terms agreement
+	•	✅ Onboarding screens (setup, contact sync, location permissions)
+	•	✅ Basic contact matching preview
+	•	🔜 Class schedule input and matching logic
+	•	🔜 Backend for account storage and match management
 
 ⸻
 
-📦 Future Improvements
-	•	Push notifications for route matches
-	•	Dark mode support
-	•	User feedback form and safety check-in
-	•	Integration with university campus maps
+📦 Future Plans
+	•	🔔 Push notifications for nearby matches or overlaps
+	•	🌙 Dark mode
+	•	🛡️ Safety check-in feature
+	•	🗺️ Campus map integration
+	•	👻 Snapchat or social integration for profile photos
+	•	📤 App Store release (after migrating to bare workflow)
 
 ⸻
 
 🧪 Testing
 
-Tested during development using Expo Go. Route logic and UI behavior have been verified using sample student data.
+Tested with Expo Go across multiple devices. Schedule logic, onboarding UX, and early contact matching have been validated using mock student data.
