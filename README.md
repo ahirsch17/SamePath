@@ -1,4 +1,4 @@
-📍 SamePath
+📍 SamePath (this is an original ideas and personal project)
 
 SamePath is a student-focused mobile app designed to help users find classes and free times with others who share similar schedules. It prioritizes privacy and opt-in route sharing, making it ideal for college students who want a more social and secure way to navigate campus.
 
