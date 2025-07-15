@@ -23,23 +23,22 @@ export default function LoginScreen() {
   const navigation = useNavigation<LoginScreenNavigationProp>();
   const logo = require('../assets/SamePathLogo.png');
 
+  const [vtEmail, setVtEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const handleLogin = async () => {
-    if (!password.trim()) {
-      Alert.alert('Please enter your password.');
+    if (!vtEmail.trim() || !password.trim()) {
+      Alert.alert('Please enter both VT email and password.');
       return;
     }
 
     try {
-      const user = await userDataService.loginByPassword(password);
+      const user = await userDataService.login(vtEmail.trim(), password);
       if (user) {
-        // Navigate to main app (you can add a main screen later)
-        Alert.alert('Login successful!', `Welcome back, ${user.name}!`);
-        // For now, go back to welcome screen
-        navigation.goBack();
+        // Navigate to main app
+        navigation.navigate('Schedule');
       } else {
-        Alert.alert('Login failed', 'Incorrect password or account not found. Please try again or use the setup screen for new accounts.');
+        Alert.alert('Login failed', 'Incorrect VT email or password. Please try again or use the setup screen for new accounts.');
       }
     } catch (error) {
       Alert.alert('Error', 'Something went wrong. Please try again.');
@@ -60,8 +59,18 @@ export default function LoginScreen() {
 
       <Text style={styles.title}>Welcome Back</Text>
       <Text style={styles.subtitle}>
-        Enter your password to sign in to SamePath.
+        Enter your VT email and password to sign in to SamePath.
       </Text>
+
+      <Text style={styles.label}>VT Email</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="e.g., alexishirsch"
+        value={vtEmail}
+        onChangeText={setVtEmail}
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
 
       <Text style={styles.label}>Password</Text>
       <TextInput
@@ -73,9 +82,9 @@ export default function LoginScreen() {
       />
 
       <TouchableOpacity
-        style={[styles.button, !password.trim() && styles.disabledButton]}
+        style={[styles.button, (!vtEmail.trim() || !password.trim()) && styles.disabledButton]}
         onPress={handleLogin}
-        disabled={!password.trim()}
+        disabled={!vtEmail.trim() || !password.trim()}
       >
         <Text style={styles.buttonText}>Sign In</Text>
       </TouchableOpacity>

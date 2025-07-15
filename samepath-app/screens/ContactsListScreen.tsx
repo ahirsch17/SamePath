@@ -13,9 +13,15 @@ import {
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { userDataService, Contact } from '../services/UserDataService';
+import type { StackNavigationProp } from '@react-navigation/stack';
+
+type RootStackParamList = {
+  Contacts: undefined;
+  Schedule: undefined;
+};
 
 export default function ContactsListScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList, 'Contacts'>>();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [search, setSearch] = useState('');
 
@@ -139,7 +145,10 @@ export default function ContactsListScreen() {
       />
 
       {/* Continue Button */}
-      <TouchableOpacity style={styles.continueButton}>
+      <TouchableOpacity 
+        style={styles.continueButton}
+        onPress={() => navigation.navigate('Schedule')}
+      >
         <Text style={styles.continueButtonText}>Continue (2/2)</Text>
       </TouchableOpacity>
     </View>

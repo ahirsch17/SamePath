@@ -8,7 +8,10 @@ import LoginScreen from './screens/LoginScreen';
 import TermsScreen from './screens/TermsScreen';
 import ConnectionsScreen from './screens/ConnectionsScreen';
 import ContactsListScreen from './screens/ContactsListScreen';
-
+import ScheduleScreen from './screens/ScheduledScreen';
+import CRNLookupScreen from './screens/CRNLookupScreen';
+import NetworkScreen from './screens/NetworkScreen';
+import PreferencesScreen from './screens/PreferencesScreen';
 
 
   const Stack = createStackNavigator();
@@ -23,6 +26,10 @@ import ContactsListScreen from './screens/ContactsListScreen';
     <Stack.Screen name="Terms" component={TermsScreen} options={{ headerShown: false }} />
     <Stack.Screen name="Connections" component={ConnectionsScreen} options={{ headerShown: false }} />
     <Stack.Screen name="Contacts" component={ContactsListScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="Schedule" component={ScheduleScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="CRNLookup" component={CRNLookupScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="Network" component={NetworkScreen} options={{ headerShown: false }} />
+    <Stack.Screen name="Preferences" component={PreferencesScreen} options={{ headerShown: false }} />
   </Stack.Navigator>
   </NavigationContainer>
 

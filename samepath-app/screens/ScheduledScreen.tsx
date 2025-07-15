@@ -1,0 +1,1299 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  Platform,
+  StatusBar,
+  Image,
+  Alert,
+  Modal,
+  PanResponder,
+  Dimensions,
+  Linking,
+  ActivityIndicator,
+} from 'react-native';
+import { Ionicons, FontAwesome } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { userDataService } from '../services/UserDataService';
+import { courseDataService, CourseInfo, CourseMatch } from '../services/CourseDataService';
+import { Modal as RNModal } from 'react-native';
+import NetworkScreen from './NetworkScreen';
+import PreferencesScreen from './PreferencesScreen';
+
+interface ScheduleScreenNavigationProp {
+  navigate: (screen: string) => void;
+  goBack: () => void;
+}
+
+interface ClassSchedule {
+  crn: string;
+  courseName: string;
+  time: string;
+  days: string;
+  location: string;
+  subject: string;
+  courseNumber: string;
+  credits: number;
+  instructor: string;
+  friendsInSameSection: string[];
+  friendsInOtherSections: string[];
+}
+
+interface FreeTime {
+  id: string;
+  activity: string;
+  time: string;
+  days: string;
+  location?: string;
+}
+
+interface ClubEvent {
+  id: string;
+  name: string;
+  time: string;
+  days: string;
+  location?: string;
+  type: 'club' | 'event';
+  description?: string;
+}
+
+export default function ScheduleScreen() {
+  const navigation = useNavigation<ScheduleScreenNavigationProp>();
+  const [activeTab, setActiveTab] = useState<'schedule' | 'freeTime' | 'samepath' | 'network' | 'preferences'>('schedule');
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [schedule, setSchedule] = useState<ClassSchedule[]>([]);
+  const [freeTime, setFreeTime] = useState<FreeTime[]>([]);
+  const [clubEvents, setClubEvents] = useState<ClubEvent[]>([]);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<ClassSchedule | null>(null);
+  const [showFriendModal, setShowFriendModal] = useState(false);
+  const [selectedBlock, setSelectedBlock] = useState<{ day: number; hour: number } | null>(null);
+  const [blockActivities, setBlockActivities] = useState<{ [key: string]: string[] }>({});
+  const [tooltip, setTooltip] = useState<{ dayIdx: number; x: number; time: string } | null>(null);
+  const [activityModal, setActivityModal] = useState<{ dayIdx: number; start: number; end: number } | null>(null);
+  const barRefs = useRef<(View | null)[]>([]);
+  const [suggestedEvents, setSuggestedEvents] = useState<any[]>([]);
+  const [loadingEvents, setLoadingEvents] = useState(false);
+
+  // Helper: get today's date in 'MMM D, YYYY' (e.g., 'Sep 14, 2024')
+  const getTodayString = () => {
+    const d = new Date();
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  // Try to fetch and parse events from Blacksburg and HokieSports using regex
+  useEffect(() => {
+    if (activeTab !== 'samepath') return;
+    const fetchEvents = async () => {
+      setLoadingEvents(true);
+      let events: any[] = [];
+      try {
+        // --- Blacksburg Community Calendar ---
+        const bbRes = await fetch('https://www.blacksburg.gov/community/community-engagement/calendar');
+        const bbHtml = await bbRes.text();
+        // Regex: Find each event block
+        const bbEventBlockRegex = /<div class="list-item(.*?)<\/div>\s*<\/div>/gs;
+        let blockMatch;
+        const todayStr = getTodayString();
+        while ((blockMatch = bbEventBlockRegex.exec(bbHtml))) {
+          const block = blockMatch[1];
+          // Extract title
+          const titleMatch = block.match(/<div class="list-item-title">\s*<a [^>]+>(.*?)<\/a>/);
+          // Extract date
+          const dateMatch = block.match(/<div class="list-item-date">\s*(.*?)\s*<\/div>/);
+          // Extract time
+          const timeMatch = block.match(/<div class="list-item-time">\s*(.*?)\s*<\/div>/);
+          // Extract location
+          const locMatch = block.match(/<div class="list-item-location">\s*(.*?)\s*<\/div>/);
+          if (titleMatch && dateMatch && dateMatch[1].includes(todayStr)) {
+            events.push({
+              title: titleMatch[1].trim(),
+              date: dateMatch[1].trim(),
+              time: timeMatch ? timeMatch[1].trim() : '',
+              location: locMatch ? locMatch[1].trim() : '',
+              type: 'Community',
+              link: 'https://www.blacksburg.gov/community/community-engagement/calendar'
+            });
+          }
+        }
+      } catch (e) {}
+      try {
+        // --- HokieSports ---
+        const vtRes = await fetch('https://hokiesports.com/');
+        const vtHtml = await vtRes.text();
+        // Regex: Find each event block (look for <div class="event-item"> ... )
+        const vtEventBlockRegex = /<div class="event-item([\s\S]*?)<\/div>\s*<\/div>/g;
+        let blockMatch;
+        const todayStr = getTodayString();
+        while ((blockMatch = vtEventBlockRegex.exec(vtHtml))) {
+          const block = blockMatch[1];
+          // Extract title
+          const titleMatch = block.match(/<div class="event-title">\s*<a [^>]+>(.*?)<\/a>/);
+          // Extract date
+          const dateMatch = block.match(/<div class="event-date">\s*(.*?)\s*<\/div>/);
+          // Extract time
+          const timeMatch = block.match(/<div class="event-time">\s*(.*?)\s*<\/div>/);
+          // Extract location
+          const locMatch = block.match(/<div class="event-location">\s*(.*?)\s*<\/div>/);
+          if (titleMatch && dateMatch && dateMatch[1].includes(todayStr)) {
+            events.push({
+              title: titleMatch[1].trim(),
+              date: dateMatch[1].trim(),
+              time: timeMatch ? timeMatch[1].trim() : '',
+              location: locMatch ? locMatch[1].trim() : '',
+              type: 'Sports',
+              link: 'https://hokiesports.com/'
+            });
+          }
+        }
+      } catch (e) {}
+      // Fallback if no events found
+      if (events.length === 0) {
+        events = [
+          {
+            title: 'Blacksburg Farmers Market',
+            date: 'Sat, Sep 14',
+            time: '8:00am - 2:00pm',
+            location: 'Downtown Blacksburg',
+            type: 'Community',
+            link: 'https://www.blacksburg.gov/community/community-engagement/calendar'
+          },
+          {
+            title: 'VT Football vs. UVA',
+            date: 'Sat, Sep 14',
+            time: '3:30pm',
+            location: 'Lane Stadium',
+            type: 'Sports',
+            link: 'https://hokiesports.com/'
+          }
+        ];
+      }
+      setSuggestedEvents(events);
+      setLoadingEvents(false);
+    };
+    fetchEvents();
+    // eslint-disable-next-line
+  }, [activeTab]);
+
+  useEffect(() => {
+    loadUserSchedule();
+  }, []);
+
+  const loadUserSchedule = async () => {
+    const user = await userDataService.getCurrentUser();
+    if (user) {
+      setCurrentUser(user);
+      // Fetch CRNs from backend user_courses table
+      const userCRNs = await userDataService.getUserCRNs(user.vtEmail);
+      
+      // Get course data for each CRN
+      const courses: any[] = [];
+      for (const crn of userCRNs) {
+        const course = await courseDataService.getCourseByCRN(crn);
+        if (course) {
+          courses.push(course);
+        }
+      }
+      
+      // Get friends for user
+      const friends = await userDataService.getFriendsForUser(user.vtEmail);
+      
+      // Convert to ClassSchedule format
+      const classSchedule: ClassSchedule[] = await Promise.all(courses.map(async (course: any) => {
+        // Find friends in this course (same section)
+        const friendsInThisCourse = friends.filter(friend => 
+          friend.crns.includes(course.crn)
+        ).map(friend => friend.name);
+
+        // Find friends in other sections (same subject+courseNumber, different CRN)
+        const friendsInOtherSections = friends.filter(friend =>
+          friend.crns.some(async friendCrn => {
+            // Get the friend's course object for this CRN
+            let friendCourse = courses.find(c => c.crn === friendCrn);
+            if (!friendCourse) friendCourse = await courseDataService.getCourseByCRN(friendCrn);
+            return friendCourse &&
+              friendCourse.subject === course.subject &&
+              friendCourse.courseNumber === course.courseNumber &&
+              friendCrn !== course.crn;
+          }) && !friend.crns.includes(course.crn)
+        ).map(friend => friend.name);
+
+        return {
+          crn: course.crn,
+          courseName: course.courseName,
+          time: course.time,
+          days: course.days,
+          location: course.location,
+          subject: course.subject,
+          courseNumber: course.courseNumber,
+          credits: course.credits,
+          instructor: course.instructor,
+          friendsInSameSection: friendsInThisCourse,
+          friendsInOtherSections: friendsInOtherSections
+        };
+      }));
+      setSchedule(classSchedule);
+
+      // Start with empty clubs/events - let user add their own
+      setClubEvents([]);
+    }
+  };
+
+  const addFreeTime = () => {
+    Alert.alert('Add Free Time', 'Free time management coming soon!');
+  };
+
+  const addClubEvent = () => {
+    setShowAddModal(true);
+  };
+
+  const openCRNLookup = () => {
+    navigation.navigate('CRNLookup');
+  };
+
+  const showFriendSections = (course: ClassSchedule) => {
+    setSelectedCourse(course);
+    setShowFriendModal(true);
+  };
+
+  const formatDays = (days: string): string => {
+    // Convert VT format to readable format
+    return days
+      .replace('TTh', 'T TH')
+      .replace('MWF', 'M W F')
+      .replace('MW', 'M W')
+      .replace('TTh', 'T TH')
+      .replace('TR', 'T R')
+      .replace('MTWThF', 'M T W TH F')
+      .replace('MTWTh', 'M T W TH')
+      .replace('TThF', 'T TH F')
+      .replace('MWTh', 'M W TH')
+      .replace('MTTh', 'M T TH')
+      .replace('WF', 'W F')
+      .replace('MF', 'M F')
+      .replace('TF', 'T F')
+      .replace('ThF', 'TH F')
+      .replace('MTh', 'M TH')
+      .replace('WTh', 'W TH');
+  };
+
+  const renderScheduleItem = (item: ClassSchedule | FreeTime | ClubEvent, type: 'class' | 'freeTime' | 'clubEvent') => (
+    <View key={type === 'class' ? (item as ClassSchedule).crn : (item as FreeTime | ClubEvent).id} style={styles.scheduleItem}>
+      <View style={styles.itemHeader}>
+        <View style={[styles.typeBadge, 
+          type === 'class' ? styles.classBadge : 
+          type === 'clubEvent' ? styles.clubBadge : styles.freeTimeBadge
+        ]}>
+          <Text style={styles.typeText}>
+            {type === 'class' ? 'CLASS' : type === 'clubEvent' ? 'CLUB' : 'FREE TIME'}
+          </Text>
+        </View>
+        {type === 'class' && (
+          <TouchableOpacity 
+            style={styles.friendButton}
+            onPress={() => showFriendSections(item as ClassSchedule)}
+          >
+            <Ionicons name="people" size={16} color="#007AFF" />
+          </TouchableOpacity>
+        )}
+      </View>
+      
+      <Text style={styles.itemTitle}>
+        {type === 'class' ? (item as ClassSchedule).courseName :
+         type === 'freeTime' ? (item as FreeTime).activity : 
+         (item as ClubEvent).name}
+      </Text>
+      
+      {type === 'class' && (
+        <Text style={styles.courseCode}>
+          {(item as ClassSchedule).subject} {(item as ClassSchedule).courseNumber} • {(item as ClassSchedule).credits} credits • CRN: {(item as ClassSchedule).crn}
+        </Text>
+      )}
+      
+      <View style={styles.itemDetails}>
+        <View style={styles.detailRow}>
+          <Ionicons name="time-outline" size={14} color="#666" />
+          <Text style={styles.detailText}>{item.time}</Text>
+        </View>
+        
+        <View style={styles.detailRow}>
+          <Ionicons name="calendar-outline" size={14} color="#666" />
+          <Text style={styles.detailText}>{formatDays(item.days)}</Text>
+        </View>
+        
+        {item.location && (
+          <View style={styles.detailRow}>
+            <Ionicons name="location-outline" size={14} color="#666" />
+            <Text style={styles.detailText}>{item.location}</Text>
+          </View>
+        )}
+        
+        {type === 'class' && (item as ClassSchedule).instructor && (
+          <View style={styles.detailRow}>
+            <Ionicons name="person-outline" size={14} color="#666" />
+            <Text style={styles.detailText}>{(item as ClassSchedule).instructor}</Text>
+          </View>
+        )}
+      </View>
+      
+      {/* Friend matches for classes */}
+      {type === 'class' && ((item as ClassSchedule).friendsInSameSection.length > 0 || (item as ClassSchedule).friendsInOtherSections.length > 0) && (
+        <View style={styles.friendsSection}>
+          {(item as ClassSchedule).friendsInSameSection.length > 0 && (
+            <View style={styles.friendGroup}>
+              <Text style={styles.friendLabel}>Same Section:</Text>
+              <View style={styles.friendAvatars}>
+                {(item as ClassSchedule).friendsInSameSection.map((friend, index) => (
+                  <View key={index} style={styles.friendAvatar}>
+                    <Text style={styles.friendInitial}>{friend.charAt(0)}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+          
+          {(item as ClassSchedule).friendsInOtherSections.length > 0 && (
+            <View style={styles.friendGroup}>
+              <Text style={styles.friendLabel}>Other Sections:</Text>
+              <View style={styles.friendAvatars}>
+                {(item as ClassSchedule).friendsInOtherSections.map((friend, index) => (
+                  <View key={index} style={styles.friendAvatar}>
+                    <Text style={styles.friendInitial}>{friend.charAt(0)}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+        </View>
+      )}
+    </View>
+  );
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'schedule':
+        return (
+          <>
+            <Text style={styles.sectionTitle}>Classes</Text>
+            {schedule.length > 0 ? (
+              schedule.map(item => renderScheduleItem(item, 'class'))
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="school-outline" size={48} color="#ccc" />
+                <Text style={styles.emptyText}>No classes scheduled</Text>
+              </View>
+            )}
+
+            <Text style={styles.sectionTitle}>Clubs & Events</Text>
+            {clubEvents.length > 0 ? (
+              clubEvents.map(item => renderScheduleItem(item, 'clubEvent'))
+            ) : (
+              <View style={styles.emptyState}>
+                <Ionicons name="people-outline" size={48} color="#ccc" />
+                <Text style={styles.emptyText}>No clubs or events</Text>
+              </View>
+            )}
+
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity style={[styles.addButton, { backgroundColor: '#007AFF' }]} onPress={openCRNLookup}>
+                <Ionicons name="search" size={24} color="#fff" />
+                <Text style={styles.addButtonText}>Lookup Course by CRN</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={[styles.addButton, { backgroundColor: '#28a745' }]} onPress={addClubEvent}>
+                <Ionicons name="add" size={24} color="#fff" />
+                <Text style={styles.addButtonText}>Add Club/Event</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        );
+      case 'freeTime':
+        return (
+          <>
+            <View style={{ paddingLeft: 24 }}>
+              {renderFreeTimeBars()}
+            </View>
+            {renderActivityModal()}
+          </>
+        );
+      case 'samepath':
+        // Home screen: show next event and suggestions
+        const now = new Date();
+        // Find next class
+        const nextClass = schedule
+          .map(event => {
+            // Parse event time to get start hour
+            const match = event.time.match(/(\d{1,2}):(\d{2})/);
+            let startHour = 0;
+            if (match) startHour = parseInt(match[1], 10);
+            return { ...event, startHour };
+          })
+          .sort((a, b) => a.startHour - b.startHour)
+          .find(event => {
+            // Check if today and time is in the future
+            const todayIdx = now.getDay();
+            const dayMap: Record<number, string> = { 0: 'S', 1: 'M', 2: 'T', 3: 'W', 4: 'TH', 5: 'F', 6: 'SA' };
+            const todayKey = dayMap[todayIdx];
+            return todayKey && event.days.includes(todayKey) && event.startHour > now.getHours();
+          });
+        // Find friends free now
+        const freeNow = freeTime.filter(f => {
+          // Parse time and days
+          const match = f.time.match(/(\d{1,2}):(\d{2})/);
+          let startHour = 0;
+          if (match) startHour = parseInt(match[1], 10);
+          const todayIdx = now.getDay();
+          const dayMap: Record<number, string> = { 0: 'S', 1: 'M', 2: 'T', 3: 'W', 4: 'TH', 5: 'F', 6: 'SA' };
+          const todayKey = dayMap[todayIdx];
+          return todayKey && f.days.includes(todayKey) && startHour <= now.getHours();
+        });
+        return (
+          <View style={{ alignItems: 'center', justifyContent: 'center', flex: 1, paddingTop: 40 }}>
+            <Image
+              source={require('../assets/icon.png')}
+              style={{ width: 120, height: 120, marginBottom: 24, opacity: 0.95, borderRadius: 60, borderWidth: 4, borderColor: '#d67b32', backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12 }}
+            />
+            {nextClass ? (
+              <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>
+                Next: {nextClass.courseName} in {nextClass.startHour - now.getHours()} hrs with {nextClass.friendsInSameSection.join(', ')}
+              </Text>
+            ) : (
+              <>
+                <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: '#d67b32', textAlign: 'center' }}>
+                  You have no more classes today!
+                </Text>
+                <Text style={{ fontSize: 16, color: '#444', marginTop: 8, marginBottom: 16, textAlign: 'center' }}>
+                  The SamePath icon is your guide to exploring campus and making the most of your free time.
+                </Text>
+                <Text style={{ fontSize: 15, color: '#666', textAlign: 'center', marginBottom: 8 }}>
+                  • Check out campus events happening tonight
+                  {'\n'}• Discover deals at local restaurants
+                  {'\n'}• Meet up with friends or explore new spots
+                </Text>
+                <Text style={{ fontSize: 14, color: '#aaa', textAlign: 'center', marginTop: 12 }}>
+                  Tap the orange blocks in Free Time to plan your next adventure!
+                </Text>
+              </>
+            )}
+            {freeNow.length > 0 ? (
+              <Text style={{ fontSize: 16, color: '#d67b32', marginTop: 12 }}>
+                {freeNow[0].activity} is available now. Would you like to join?
+              </Text>
+            ) : null}
+            <View style={{ marginTop: 32 }}>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#d67b32', marginBottom: 12 }}>Suggested Events</Text>
+              {loadingEvents ? (
+                <ActivityIndicator />
+              ) : suggestedEvents.length === 0 ? (
+                <Text style={{ color: '#888' }}>No events found for today.</Text>
+              ) : (
+                suggestedEvents.map(event => (
+                  <View key={event.title + event.date} style={{ marginBottom: 16, backgroundColor: '#f8f9fa', borderRadius: 10, padding: 14 }}>
+                    <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{event.title}</Text>
+                    <Text style={{ color: '#666', marginTop: 2 }}>{event.date} • {event.time}</Text>
+                    <Text style={{ color: '#888', marginTop: 2 }}>{event.location}</Text>
+                    <Text style={{ color: event.type === 'Sports' ? '#a94442' : '#31708f', marginTop: 2 }}>{event.type}</Text>
+                    <TouchableOpacity onPress={() => Linking.openURL(event.link)}>
+                      <Text style={{ color: '#d67b32', marginTop: 6, fontWeight: 'bold' }}>More info</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+            </View>
+          </View>
+        );
+      case 'network':
+        return <NetworkScreen />;
+      case 'preferences':
+        return <PreferencesScreen />;
+      default:
+        return null;
+    }
+  };
+
+  const getHeaderTitle = () => {
+    switch (activeTab) {
+      case 'schedule': return 'Regularly Scheduled Events';
+      case 'freeTime': return 'Free Time';
+      case 'samepath': return 'SamePath';
+      case 'network': return 'Network';
+      case 'preferences': return 'Preferences';
+      default: return 'Schedule';
+    }
+  };
+
+  // Add constants for days and hours
+  const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const HOURS = Array.from({ length: 18 }, (_, i) => 6 + i); // 6am to 11pm
+  const ACTIVITIES = ['Gym', 'Rest/Nap', 'Eat', 'Study', 'Read', 'Religion', 'Social', 'Other'];
+
+  // Calculate scheduled events as a set of (day, hour) pairs
+  const scheduledBlocks = new Set<string>();
+  schedule.forEach(event => {
+    // Parse event.days and event.time to fill scheduledBlocks
+    // For simplicity, assume event.days is like 'M W F' and event.time is '14:00-15:15'
+    const dayMap: { [key: string]: number } = { S: 0, M: 1, T: 2, W: 3, TH: 4, F: 5, SA: 6 };
+    
+    let startHour = 0, endHour = 0;
+    if (event.time) {
+      const match = event.time.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+      if (match) {
+        startHour = parseInt(match[1], 10);
+        endHour = parseInt(match[3], 10);
+      }
+    }
+    
+    // Parse days string into array
+    const daysArr = event.days.split(' ').filter(day => day.trim() !== '');
+    
+    daysArr.forEach(dayStr => {
+      let dayIdx = dayMap[dayStr] ?? -1;
+      if (dayIdx >= 0) {
+        for (let h = startHour; h < endHour; h++) {
+          scheduledBlocks.add(getBlockKey(dayIdx, h));
+        }
+      }
+    });
+  });
+
+  // Helper to get key for block
+  const getBlockKey = (day: number, hour: number) => `${day}-${hour}`;
+
+  // Helper: Convert time string (e.g., '9:00') to minutes since 00:00
+  const timeStringToMinutes = (time: string) => {
+    const [h, m] = time.split(':').map(Number);
+    return h * 60 + (m || 0);
+  };
+
+  // Helper: Convert minutes since 00:00 to time string (e.g., 540 -> '9:00')
+  const minutesToTimeString = (minutes: number) => {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return `${h}:${m.toString().padStart(2, '0')}`;
+  };
+
+  // Constants for day and time range
+  const START_MINUTES = 6 * 60; // 6:00am
+  const END_MINUTES = 23 * 60; // 11:00pm
+  const TOTAL_DAY_MINUTES = END_MINUTES - START_MINUTES;
+
+  // Calculate free and scheduled intervals for each day
+  const getDailyIntervals = (schedule: ClassSchedule[]) => {
+    // For each day, collect scheduled intervals as [start, end] in minutes
+    const dayIntervals: { [dayIdx: number]: { scheduled: [number, number][], free: [number, number][] } } = {};
+    for (let i = 0; i < 7; i++) {
+      dayIntervals[i] = { scheduled: [], free: [] };
+    }
+    schedule.forEach(event => {
+      // Parse event.days (e.g., 'M W F')
+      const dayMap: { [key: string]: number } = { S: 0, M: 1, T: 2, W: 3, TH: 4, F: 5, SA: 6 };
+      const daysArr = event.days.split(' ').filter(day => day.trim() !== '');
+      let start = START_MINUTES, end = START_MINUTES;
+      if (event.time) {
+        // Support both '9:00-9:50' and '09:00-10:15' formats
+        const match = event.time.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+        if (match) {
+          start = parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+          end = parseInt(match[3], 10) * 60 + parseInt(match[4], 10);
+        }
+      }
+      daysArr.forEach(dayStr => {
+        let dayIdx = dayMap[dayStr] ?? -1;
+        if (dayIdx >= 0) {
+          // Clamp to day range
+          const s = Math.max(start, START_MINUTES);
+          const e = Math.min(end, END_MINUTES);
+          if (e > s) dayIntervals[dayIdx].scheduled.push([s, e]);
+        }
+      });
+    });
+    // For each day, compute free intervals
+    for (let i = 0; i < 7; i++) {
+      const scheduled = dayIntervals[i].scheduled.sort((a, b) => a[0] - b[0]);
+      let free: [number, number][] = [];
+      let prevEnd = START_MINUTES;
+      for (const [s, e] of scheduled) {
+        if (s > prevEnd) free.push([prevEnd, s]);
+        prevEnd = Math.max(prevEnd, e);
+      }
+      if (prevEnd < END_MINUTES) free.push([prevEnd, END_MINUTES]);
+      dayIntervals[i].free = free;
+    }
+    return dayIntervals;
+  };
+
+  // Helper to get time from x position on bar
+  const getTimeFromX = (x: number, barWidth: number) => {
+    const pct = Math.max(0, Math.min(1, x / barWidth));
+    const minutes = Math.round(START_MINUTES + pct * TOTAL_DAY_MINUTES);
+    return minutesToTimeString(minutes);
+  };
+
+  // PanResponder for each bar
+  const getBarPanResponder = (dayIdx: number) => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onPanResponderGrant: evt => {
+      const bar = barRefs.current[dayIdx];
+      if (bar) {
+        bar.measure((fx, fy, width, height, px, py) => {
+          const x = evt.nativeEvent.pageX - px;
+          setTooltip({ dayIdx, x, time: getTimeFromX(x, width) });
+        });
+      }
+    },
+    onPanResponderMove: evt => {
+      const bar = barRefs.current[dayIdx];
+      if (bar) {
+        bar.measure((fx, fy, width, height, px, py) => {
+          const x = evt.nativeEvent.pageX - px;
+          setTooltip({ dayIdx, x, time: getTimeFromX(x, width) });
+        });
+      }
+    },
+    onPanResponderRelease: () => setTooltip(null),
+    onPanResponderTerminate: () => setTooltip(null),
+  });
+
+  // New: Render free time bars for each day, with time labels and improved visuals
+  const renderFreeTimeBars = () => {
+    const intervals = getDailyIntervals(schedule);
+    // Only show 6am and 11pm as time labels
+    return (
+      <View style={{ marginTop: 24, marginRight: 24 }}>
+        {DAYS.map((day, dayIdx) => (
+          <View key={day} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
+            <Text style={{ width: 48, fontWeight: 'bold', fontSize: 13 }}>{day.slice(0, 3)}</Text>
+            <View
+              ref={el => { barRefs.current[dayIdx] = el; }}
+              style={{ flex: 1, height: 32, justifyContent: 'center', position: 'relative' }}
+              {...getBarPanResponder(dayIdx).panHandlers}
+            >
+              {/* Bar background */}
+              <View style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                height: 18,
+                backgroundColor: '#f3f3f3',
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: '#e0e0e0',
+                top: 7,
+              }} />
+              {/* Scheduled overlays */}
+              {intervals[dayIdx].scheduled.map(([s, e], i) => {
+                const leftPct = ((s - START_MINUTES) / TOTAL_DAY_MINUTES) * 100;
+                const widthPct = ((e - s) / TOTAL_DAY_MINUTES) * 100;
+                return (
+                  <View
+                    key={`sched-${s}`}
+                    style={{
+                      position: 'absolute',
+                      left: `${leftPct}%`,
+                      width: `${widthPct}%`,
+                      height: 18,
+                      backgroundColor: '#d1d5db',
+                      borderRadius: 12,
+                      top: 7,
+                    }}
+                  />
+                );
+              })}
+              {/* Free overlays (orange, clickable) */}
+              {intervals[dayIdx].free.map(([fStart, fEnd], i) => {
+                const leftPct = ((fStart - START_MINUTES) / TOTAL_DAY_MINUTES) * 100;
+                const widthPct = ((fEnd - fStart) / TOTAL_DAY_MINUTES) * 100;
+                return (
+                  <TouchableOpacity
+                    key={`free-${fStart}`}
+                    style={{
+                      position: 'absolute',
+                      left: `${leftPct}%`,
+                      width: `${widthPct}%`,
+                      height: 18,
+                      backgroundColor: '#FFA500',
+                      borderRadius: 12,
+                      top: 7,
+                      opacity: 0.92,
+                    }}
+                    activeOpacity={0.7}
+                    onPress={() => setActivityModal({ dayIdx, start: fStart, end: fEnd })}
+                  />
+                );
+              })}
+              {/* End time labels */}
+              <View style={{ position: 'absolute', left: 0, top: 28 }}>
+                <Text style={{ fontSize: 11, color: '#888' }}>6am</Text>
+              </View>
+              <View style={{ position: 'absolute', right: 0, top: 28 }}>
+                <Text style={{ fontSize: 11, color: '#888' }}>11pm</Text>
+              </View>
+              {/* Tooltip for time under finger */}
+              {tooltip && tooltip.dayIdx === dayIdx && (
+                <View style={{
+                  position: 'absolute',
+                  left: Math.max(0, Math.min(tooltip.x - 32, Dimensions.get('window').width - 120)),
+                  top: -28,
+                  backgroundColor: '#fff',
+                  borderRadius: 8,
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderWidth: 1,
+                  borderColor: '#FFA500',
+                  shadowColor: '#000',
+                  shadowOpacity: 0.08,
+                  shadowRadius: 2,
+                  shadowOffset: { width: 0, height: 1 },
+                  zIndex: 10,
+                }}>
+                  <Text style={{ color: '#d67b32', fontWeight: 'bold', fontSize: 13 }}>{tooltip.time}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        ))}
+        {/* Activity modal for free block */}
+        {activityModal && (
+          <RNModal
+            visible={!!activityModal}
+            transparent
+            animationType="slide"
+            onRequestClose={() => setActivityModal(null)}
+          >
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' }}>
+              <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, width: 320, alignItems: 'center' }}>
+                <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 12 }}>
+                  Set Activities for {DAYS[activityModal.dayIdx]} {minutesToTimeString(activityModal.start)}–{minutesToTimeString(activityModal.end)}
+                </Text>
+                {ACTIVITIES.map(activity => (
+                  <TouchableOpacity
+                    key={activity}
+                    style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}
+                    onPress={() => {
+                      // For now, just close modal
+                      setActivityModal(null);
+                    }}
+                  >
+                    <View style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: 4,
+                      borderWidth: 1,
+                      borderColor: '#d67b32',
+                      backgroundColor: '#fff',
+                      marginRight: 8,
+                    }} />
+                    <Text>{activity}</Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity
+                  style={{ marginTop: 16, backgroundColor: '#d67b32', borderRadius: 6, padding: 10, alignItems: 'center', width: 120 }}
+                  onPress={() => setActivityModal(null)}
+                >
+                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>Done</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </RNModal>
+        )}
+      </View>
+    );
+  };
+
+  // Modal for activity selection
+  const renderActivityModal = () => {
+    if (!selectedBlock) return null;
+    const blockKey = getBlockKey(selectedBlock.day, selectedBlock.hour);
+    const selectedActivities = blockActivities[blockKey] || ACTIVITIES;
+    const toggleActivity = (activity: string) => {
+      setBlockActivities(prev => {
+        const current = prev[blockKey] || ACTIVITIES;
+        const next = current.includes(activity)
+          ? current.filter(a => a !== activity)
+          : [...current, activity];
+        return { ...prev, [blockKey]: next };
+      });
+    };
+    return (
+      <RNModal
+        visible={!!selectedBlock}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSelectedBlock(null)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ backgroundColor: '#fff', borderRadius: 12, padding: 24, width: 300 }}>
+            <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 12 }}>Select Activities</Text>
+            {ACTIVITIES.map(activity => (
+              <TouchableOpacity
+                key={activity}
+                style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}
+                onPress={() => toggleActivity(activity)}
+              >
+                <View style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 4,
+                  borderWidth: 1,
+                  borderColor: '#d67b32',
+                  backgroundColor: selectedActivities.includes(activity) ? '#d67b32' : '#fff',
+                  marginRight: 8,
+                }} />
+                <Text>{activity}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={{ marginTop: 16, backgroundColor: '#d67b32', borderRadius: 6, padding: 10, alignItems: 'center' }}
+              onPress={() => setSelectedBlock(null)}
+            >
+              <Text style={{ color: '#fff', fontWeight: 'bold' }}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </RNModal>
+    );
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={{ width: 24 }} />
+        <Text style={styles.headerTitle}>{getHeaderTitle()}</Text>
+        <View style={{ width: 24 }} />
+      </View>
+
+      {/* Content */}
+      <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
+        {renderContent()}
+      </ScrollView>
+
+      {/* Footer Navigation */}
+      <View style={styles.footer}>
+        <TouchableOpacity 
+          style={[styles.footerItem, activeTab === 'schedule' && styles.activeFooterItem]}
+          onPress={() => setActiveTab('schedule')}
+        >
+          <Ionicons 
+            name="calendar-outline" 
+            size={24} 
+            color={activeTab === 'schedule' ? '#d67b32' : '#666'} 
+          />
+          <Text style={[styles.footerText, activeTab === 'schedule' && styles.activeFooterText]}>
+            Schedule
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.footerItem, activeTab === 'freeTime' && styles.activeFooterItem]}
+          onPress={() => setActiveTab('freeTime')}
+        >
+          <Ionicons 
+            name="time-outline" 
+            size={24} 
+            color={activeTab === 'freeTime' ? '#d67b32' : '#666'} 
+          />
+          <Text style={[styles.footerText, activeTab === 'freeTime' && styles.activeFooterText]}>
+            Free Time
+          </Text>
+        </TouchableOpacity>
+
+        {/* Center SamePath Icon - larger, pops out, no label */}
+        <TouchableOpacity 
+          style={[styles.footerItem, styles.centerFooterItem, activeTab === 'samepath' && styles.activeFooterItem]}
+          onPress={() => setActiveTab('samepath')}
+        >
+          <Image 
+            source={require('../assets/icon.png')} 
+            style={[styles.footerIcon, styles.centerFooterIcon, activeTab === 'samepath' && styles.activeFooterIcon]} 
+          />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.footerItem, activeTab === 'network' && styles.activeFooterItem]}
+          onPress={() => setActiveTab('network')}
+        >
+          <Ionicons 
+            name="people-outline" 
+            size={24} 
+            color={activeTab === 'network' ? '#d67b32' : '#666'} 
+          />
+          <Text style={[styles.footerText, activeTab === 'network' && styles.activeFooterText]}>
+            Network
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.footerItem, activeTab === 'preferences' && styles.activeFooterItem]}
+          onPress={() => setActiveTab('preferences')}
+        >
+          <Ionicons 
+            name="settings-outline" 
+            size={24} 
+            color={activeTab === 'preferences' ? '#d67b32' : '#666'} 
+          />
+          <Text style={[styles.footerText, activeTab === 'preferences' && styles.activeFooterText]}>
+            Preferences
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Friend Sections Modal */}
+      <Modal
+        visible={showFriendModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowFriendModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {selectedCourse?.subject} {selectedCourse?.courseNumber} - Friends
+              </Text>
+              <TouchableOpacity onPress={() => setShowFriendModal(false)}>
+                <Ionicons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.modalBody}>
+              {selectedCourse && selectedCourse.friendsInSameSection.length > 0 && (
+                <View style={styles.modalSection}>
+                  <Text style={styles.modalSectionTitle}>Same Section (CRN: {selectedCourse.crn})</Text>
+                  {selectedCourse.friendsInSameSection.map((friend, index) => (
+                    <View key={index} style={styles.friendItem}>
+                      <View style={styles.friendAvatar}>
+                        <Text style={styles.friendInitial}>{friend.charAt(0)}</Text>
+                      </View>
+                      <Text style={styles.friendName}>{friend}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+              
+              {selectedCourse && selectedCourse.friendsInOtherSections.length > 0 && (
+                <View style={styles.modalSection}>
+                  <Text style={styles.modalSectionTitle}>Other Sections</Text>
+                  {selectedCourse.friendsInOtherSections.map((friend, index) => (
+                    <View key={index} style={styles.friendItem}>
+                      <View style={styles.friendAvatar}>
+                        <Text style={styles.friendInitial}>{friend.charAt(0)}</Text>
+                      </View>
+                      <Text style={styles.friendName}>{friend}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+              
+              {(!selectedCourse?.friendsInSameSection.length && !selectedCourse?.friendsInOtherSections.length) && (
+                <View style={styles.emptyModalState}>
+                  <Ionicons name="people-outline" size={48} color="#ccc" />
+                  <Text style={styles.emptyModalText}>No friends in this course</Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 60,
+    backgroundColor: '#fff',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#222',
+  },
+  contentContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#222',
+    marginBottom: 15,
+    marginTop: 20,
+  },
+  scheduleItem: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#d67b32',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  itemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  typeBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  classBadge: {
+    backgroundColor: '#e3f2fd',
+  },
+  clubBadge: {
+    backgroundColor: '#f3e5f5',
+  },
+  freeTimeBadge: {
+    backgroundColor: '#e8f5e8',
+  },
+  typeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#333',
+  },
+  friendButton: {
+    padding: 8,
+    backgroundColor: '#f0f8ff',
+    borderRadius: 20,
+  },
+  itemTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#222',
+    marginBottom: 8,
+  },
+  courseCode: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 12,
+    fontStyle: 'italic',
+  },
+  itemDetails: {
+    gap: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  detailText: {
+    fontSize: 14,
+    color: '#666',
+    marginLeft: 8,
+  },
+  friendsSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5E5',
+  },
+  friendGroup: {
+    marginBottom: 12,
+  },
+  friendLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 6,
+    fontWeight: '600',
+  },
+  friendAvatars: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  friendAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  friendInitial: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 60,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 16,
+    marginTop: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#999',
+    marginTop: 12,
+    fontWeight: '500',
+  },
+  samepathIcon: {
+    width: 48,
+    height: 48,
+    marginBottom: 8,
+  },
+  buttonContainer: {
+    gap: 12,
+    marginTop: 20,
+    marginBottom: 30,
+  },
+  addButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#d67b32',
+    paddingVertical: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  addButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  footerItem: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  activeFooterItem: {
+    backgroundColor: '#f8f9fa',
+  },
+  footerText: {
+    fontSize: 10,
+    color: '#666',
+    marginTop: 4,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  activeFooterText: {
+    color: '#d67b32',
+    fontWeight: '600',
+  },
+  footerIcon: {
+    width: 28,
+    height: 28,
+    opacity: 0.6,
+  },
+  activeFooterIcon: {
+    opacity: 1,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    width: '90%',
+    maxHeight: '80%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#222',
+  },
+  modalBody: {
+    padding: 20,
+  },
+  modalSection: {
+    marginBottom: 24,
+  },
+  modalSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  friendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  friendName: {
+    fontSize: 16,
+    color: '#333',
+    marginLeft: 12,
+    fontWeight: '500',
+  },
+  emptyModalState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyModalText: {
+    fontSize: 16,
+    color: '#999',
+    marginTop: 12,
+    fontWeight: '500',
+  },
+  centerFooterItem: {
+    marginTop: -18,
+    zIndex: 2,
+  },
+  centerFooterIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 3,
+    borderColor: '#fff',
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+});
