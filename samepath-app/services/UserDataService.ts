@@ -6,7 +6,6 @@ export interface User {
   phone: string;
   activated: boolean;
   matchList?: string[];
-<<<<<<< HEAD
   lastScheduleUpdate?: number;
   courseDataCache?: string;
   friendsInCoursesCache?: string;
@@ -27,13 +26,6 @@ export interface Course {
 export interface UserCourse {
   vtEmail: string;
   crn: string;
-=======
-  location?: string;
-  // New database columns for efficiency
-  lastScheduleUpdate?: number; // Timestamp of last schedule change
-  courseDataCache?: string; // JSON string of cached course data
-  friendsInCoursesCache?: string; // JSON string of cached friend matches
->>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
 }
 
 export interface Contact {
@@ -44,7 +36,39 @@ export interface Contact {
 
 //should be able to stay logged in
 class UserDataService {
-<<<<<<< HEAD
+  // Database service for user operations
+  private databaseService: any = null;
+
+  // Initialize database connection
+  async initialize(): Promise<void> {
+    try {
+      // Import services dynamically to avoid circular dependencies
+      const { databaseService } = await import('./DatabaseService');
+      
+      this.databaseService = databaseService;
+
+      // Initialize with your Vercel API URL
+      await databaseService.initialize({
+        apiUrl: 'https://samepath-dzdue4twj-alexis-hirschs-projects.vercel.app',
+        apiKey: undefined // No API key needed for now
+      });
+
+      console.log('✅ UserDataService initialized with Vercel API');
+    } catch (error) {
+      console.error('❌ Failed to initialize UserDataService:', error);
+      // Fallback to hardcoded data if database fails
+      this.initializeHardcodedData();
+    }
+  }
+
+  // Fallback to hardcoded data
+  private initializeHardcodedData(): void {
+    console.log('⚠️ No hardcoded data - all data should come from database');
+    // No hardcoded users - everything comes from VT → Database → API
+    this.users = [];
+  }
+
+  // Hardcoded user data - replace with database calls later
   private users: User[] = [
     {
       name: 'Alexis Hirsch',
@@ -88,42 +112,8 @@ class UserDataService {
       phone: '555-0006',
       activated: true,
       matchList: []
-=======
-  // Database service for user operations
-  private databaseService: any = null;
-
-  // Initialize database connection
-  async initialize(): Promise<void> {
-    try {
-      // Import services dynamically to avoid circular dependencies
-      const { databaseService } = await import('./DatabaseService');
-      
-      this.databaseService = databaseService;
-
-      // Initialize with your Vercel API URL
-      await databaseService.initialize({
-        apiUrl: 'https://samepath-dzdue4twj-alexis-hirschs-projects.vercel.app',
-        apiKey: undefined // No API key needed for now
-      });
-
-      console.log('✅ UserDataService initialized with Vercel API');
-    } catch (error) {
-      console.error('❌ Failed to initialize UserDataService:', error);
-      // Fallback to hardcoded data if database fails
-      this.initializeHardcodedData();
->>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
-    }
-  }
-
-  // Fallback to hardcoded data
-  private initializeHardcodedData(): void {
-    console.log('⚠️ No hardcoded data - all data should come from database');
-    // No hardcoded users - everything comes from VT → Database → API
-    this.users = [];
-  }
-
-  // Hardcoded user data - replace with database calls later
-  private users: User[] = [];
+    },
+  ];
 
   private userCourses: UserCourse[] = [
     // Alexis
@@ -168,30 +158,6 @@ class UserDataService {
 
   private currentUser: User | null = null;
 
-<<<<<<< HEAD
-  async initialize(): Promise<void> {}
-
-  async createUser(vtEmail: string, name: string, phone: string): Promise<User> {
-    const user: User = { name, vtEmail, phone, activated: false, matchList: [] };
-    this.users.push(user);
-    return user;
-  }
-
-  async activateUserWithCodeAndPid(vtPid: string, code: string, newPassword: string): Promise<User | null> {
-    const user = this.users.find(u => u.vtEmail === vtPid);
-    if (user) {
-      user.activated = true;
-      return user;
-    }
-    return null;
-  }
-
-  async login(vtEmail: string, password: string): Promise<User | null> {
-    const user = this.users.find(u => u.vtEmail === vtEmail && u.activated);
-    if (user) {
-      this.currentUser = user;
-      return user;
-=======
   // Authentication methods
   // Verify code using only the activation code (no email)
   async verifyCode(code: string): Promise<boolean> {
@@ -241,7 +207,6 @@ class UserDataService {
             return null; // User already exists and is activated
           } else {
             // User exists but not activated, update password and activate
-            existingUser.password = password;
             existingUser.activated = true;
             this.currentUser = existingUser;
             return existingUser;
@@ -252,10 +217,9 @@ class UserDataService {
         const newUser: User = {
           name: "", // Will be filled later
           vtEmail,
-          password,
           activated: false,
           matchList: [],
-          location: ""
+          phone: "" // Added missing property
         };
 
         this.users.push(newUser);
@@ -295,10 +259,9 @@ class UserDataService {
         return null;
       } else {
         // Fallback to hardcoded data
-        const user = this.users.find(u => u.vtEmail === vtPid && u.password === code && !u.activated);
+        const user = this.users.find(u => u.vtEmail === vtPid && !u.activated);
         if (user) {
           user.activated = true;
-          user.password = newPassword;
           this.currentUser = user;
           return user;
         }
@@ -335,7 +298,7 @@ class UserDataService {
         return null;
       } else {
         // Fallback to hardcoded data
-        const user = this.users.find(u => u.vtEmail === vtEmail && u.password === password);
+        const user = this.users.find(u => u.vtEmail === vtEmail);
         if (user && user.activated) {
           this.currentUser = user;
           return user;
@@ -345,7 +308,6 @@ class UserDataService {
     } catch (error) {
       console.error('Error logging in:', error);
       return null;
->>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
     }
   }
 
@@ -354,38 +316,6 @@ class UserDataService {
   }
 
   async getAllUsers(): Promise<User[]> {
-<<<<<<< HEAD
-    return this.users;
-  }
-
-  getAllUsersSync(): User[] {
-    return this.users;
-  }
-
-  async getUserCRNs(vtEmail: string): Promise<string[]> {
-    return this.userCourses.filter(uc => uc.vtEmail === vtEmail).map(uc => uc.crn);
-  }
-
-  async getCourses(): Promise<Course[]> {
-    return this.courses;
-  }
-
-  async getCourseByCRN(crn: string): Promise<Course | undefined> {
-    return this.courses.find(c => c.crn === crn);
-  }
-
-  async getFriendsForUser(vtEmail: string): Promise<{ vtEmail: string; name: string; crns: string[] }[]> {
-    const user = this.users.find(u => u.vtEmail === vtEmail);
-    if (!user || !user.matchList) return [];
-    return this.users
-      .filter(u => user.matchList!.includes(u.vtEmail))
-      .map(u => ({ vtEmail: u.vtEmail, name: u.name, crns: this.userCourses.filter(uc => uc.vtEmail === u.vtEmail).map(uc => uc.crn) }));
-  }
-
-  async findMatches(): Promise<User[]> {
-    if (!this.currentUser) return [];
-    return this.users.filter(u => this.currentUser!.matchList?.includes(u.vtEmail));
-=======
     try {
       if (this.databaseService) {
         // Use API to get all users
@@ -400,20 +330,22 @@ class UserDataService {
     }
   }
 
+  // Synchronous method to get all users (for NetworkScreen compatibility)
+  getAllUsersSync(): User[] {
+    return this.users;
+  }
+
   async updateUserProfile(name: string, location?: string): Promise<boolean> {
     if (this.currentUser) {
       try {
         if (this.databaseService) {
           // Use API to update user profile
-          const updateData = { name, ...(location && { location }) };
+          const updateData = { name };
           const updatedUser = await this.databaseService.updateUser(this.currentUser.vtEmail, updateData);
           this.currentUser = updatedUser;
         } else {
           // Fallback to hardcoded data
           this.currentUser.name = name;
-          if (location) {
-            this.currentUser.location = location;
-          }
         }
         return true;
       } catch (error) {
@@ -429,31 +361,18 @@ class UserDataService {
       try {
         if (this.databaseService) {
           // Use API to update user schedule
-          const updateData = {
-            crn1: crns[0] || undefined,
-            crn2: crns[1] || undefined,
-            crn3: crns[2] || undefined,
-            crn4: crns[3] || undefined,
-            crn5: crns[4] || undefined,
-            crn6: crns[5] || undefined,
-            crn7: crns[6] || undefined,
-            crn8: crns[7] || undefined
-          };
-          
+          const updateData = { crns };
           const updatedUser = await this.databaseService.updateUser(this.currentUser!.vtEmail, updateData);
           this.currentUser = updatedUser;
         } else {
-          // Fallback to hardcoded data
-          this.currentUser.crn1 = crns[0] || undefined;
-          this.currentUser.crn2 = crns[1] || undefined;
-          this.currentUser.crn3 = crns[2] || undefined;
-          this.currentUser.crn4 = crns[3] || undefined;
-          this.currentUser.crn5 = crns[4] || undefined;
-          this.currentUser.crn6 = crns[5] || undefined;
-          this.currentUser.crn7 = crns[6] || undefined;
-          this.currentUser.crn8 = crns[7] || undefined;
+          // Fallback to hardcoded data: update userCourses array
+          // Remove old courses for this user
+          this.userCourses = this.userCourses.filter(uc => uc.vtEmail !== this.currentUser!.vtEmail);
+          // Add new courses
+          for (const crn of crns) {
+            this.userCourses.push({ vtEmail: this.currentUser!.vtEmail, crn });
+          }
         }
-        
         // Clear user cache when schedule changes (EFFICIENT)
         if (this.currentUser?.vtEmail) {
           try {
@@ -463,7 +382,6 @@ class UserDataService {
             console.error('Failed to clear user cache:', error);
           }
         }
-        
         return true;
       } catch (error) {
         console.error('Error updating user schedule:', error);
@@ -524,19 +442,16 @@ class UserDataService {
           return result.friends;
         }
       }
-      
       // Fallback to hardcoded data
       const allUsers = await this.getAllUsers();
       const currentUser = allUsers.find(u => u.vtEmail === vtEmail);
       if (!currentUser?.matchList) return [];
-      
       return allUsers
         .filter(user => currentUser.matchList?.includes(user.vtEmail))
         .map(user => ({
           vtEmail: user.vtEmail,
           name: user.name,
-          crns: [user.crn1, user.crn2, user.crn3, user.crn4, user.crn5, user.crn6, user.crn7, user.crn8]
-            .filter((crn): crn is string => Boolean(crn))
+          crns: this.getUserCRNs(user.vtEmail)
         }));
     } catch (error) {
       console.error('Error getting friends:', error);
@@ -544,10 +459,14 @@ class UserDataService {
     }
   }
 
+  // Returns all CRNs for a given user
+  getUserCRNs(vtEmail: string): string[] {
+    return this.userCourses.filter(uc => uc.vtEmail === vtEmail).map(uc => uc.crn);
+  }
+
   // Matching methods
   async findMatches(): Promise<User[]> {
     if (!this.currentUser) return [];
-
     try {
       if (this.databaseService) {
         // Use API to find matches
@@ -555,27 +474,16 @@ class UserDataService {
         return matches;
       } else {
         // Fallback to hardcoded data
-        const currentUserCrns = [
-          this.currentUser.crn1, this.currentUser.crn2, this.currentUser.crn3, this.currentUser.crn4,
-          this.currentUser.crn5, this.currentUser.crn6, this.currentUser.crn7, this.currentUser.crn8
-        ].filter(Boolean);
-
+        const currentUserCrns = this.getUserCRNs(this.currentUser.vtEmail);
         return this.users.filter(user => {
           if (user.vtEmail === this.currentUser?.vtEmail) return false;
           if (!user.activated) return false;
-
-          const userCrns = [
-            user.crn1, user.crn2, user.crn3, user.crn4,
-            user.crn5, user.crn6, user.crn7, user.crn8
-          ].filter(Boolean);
-
+          const userCrns = this.getUserCRNs(user.vtEmail);
           // Check for CRN overlaps
           const hasOverlap = currentUserCrns.some(crn => userCrns.includes(crn));
-          
           // Check if in each other's match lists
           const inMatchList = this.currentUser?.matchList?.includes(user.vtEmail) || 
                              user.matchList?.includes(this.currentUser?.vtEmail || '');
-
           return hasOverlap && inMatchList;
         });
       }
@@ -583,7 +491,6 @@ class UserDataService {
       console.error('Error finding matches:', error);
       return [];
     }
->>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
   }
 
   async getContacts(): Promise<Contact[]> {

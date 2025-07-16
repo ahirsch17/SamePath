@@ -2,11 +2,6 @@ export interface VTUserData {
   vtEmail: string;
   name: string;
   crns: string[];
-<<<<<<< HEAD
-  phone: string; // Added phone field
-  matchList: string[]; // Changed from crn1-crn8 to matchList
-=======
->>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
   // Add other VT-specific data as needed
 }
 
@@ -49,11 +44,6 @@ class VTIntegrationService {
       const userData = {
         vtEmail: vtUserData.vtEmail,
         name: vtUserData.name,
-<<<<<<< HEAD
-        phone: vtUserData.phone,
-        crns: vtUserData.crns,
-        matchList: vtUserData.matchList || []
-=======
         crn1: vtUserData.crns[0] || undefined,
         crn2: vtUserData.crns[1] || undefined,
         crn3: vtUserData.crns[2] || undefined,
@@ -66,7 +56,6 @@ class VTIntegrationService {
         activated: false,
         matchList: [],
         location: ""
->>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
       };
 
       await this.databaseService.createUser(userData);

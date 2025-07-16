@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import React, { useState, useEffect, useRef } from 'react';
-=======
 import React, { useState, useEffect } from 'react';
->>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
 import {
   View,
   Text,
@@ -14,24 +10,12 @@ import {
   Image,
   Alert,
   Modal,
-<<<<<<< HEAD
-  PanResponder,
-  Dimensions,
-  Linking,
-  ActivityIndicator,
-=======
->>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
 } from 'react-native';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { userDataService } from '../services/UserDataService';
 import { courseDataService, CourseInfo, CourseMatch } from '../services/CourseDataService';
 import { Modal as RNModal } from 'react-native';
-<<<<<<< HEAD
-import NetworkScreen from './NetworkScreen';
-import PreferencesScreen from './PreferencesScreen';
-=======
->>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
 
 interface ScheduleScreenNavigationProp {
   navigate: (screen: string) => void;
@@ -82,114 +66,6 @@ export default function ScheduleScreen() {
   const [showFriendModal, setShowFriendModal] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState<{ day: number; hour: number } | null>(null);
   const [blockActivities, setBlockActivities] = useState<{ [key: string]: string[] }>({});
-<<<<<<< HEAD
-  const [tooltip, setTooltip] = useState<{ dayIdx: number; x: number; time: string } | null>(null);
-  const [activityModal, setActivityModal] = useState<{ dayIdx: number; start: number; end: number } | null>(null);
-  const barRefs = useRef<(View | null)[]>([]);
-  const [suggestedEvents, setSuggestedEvents] = useState<any[]>([]);
-  const [loadingEvents, setLoadingEvents] = useState(false);
-
-  // Helper: get today's date in 'MMM D, YYYY' (e.g., 'Sep 14, 2024')
-  const getTodayString = () => {
-    const d = new Date();
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  };
-
-  // Try to fetch and parse events from Blacksburg and HokieSports using regex
-  useEffect(() => {
-    if (activeTab !== 'samepath') return;
-    const fetchEvents = async () => {
-      setLoadingEvents(true);
-      let events: any[] = [];
-      try {
-        // --- Blacksburg Community Calendar ---
-        const bbRes = await fetch('https://www.blacksburg.gov/community/community-engagement/calendar');
-        const bbHtml = await bbRes.text();
-        // Regex: Find each event block
-        const bbEventBlockRegex = /<div class="list-item(.*?)<\/div>\s*<\/div>/gs;
-        let blockMatch;
-        const todayStr = getTodayString();
-        while ((blockMatch = bbEventBlockRegex.exec(bbHtml))) {
-          const block = blockMatch[1];
-          // Extract title
-          const titleMatch = block.match(/<div class="list-item-title">\s*<a [^>]+>(.*?)<\/a>/);
-          // Extract date
-          const dateMatch = block.match(/<div class="list-item-date">\s*(.*?)\s*<\/div>/);
-          // Extract time
-          const timeMatch = block.match(/<div class="list-item-time">\s*(.*?)\s*<\/div>/);
-          // Extract location
-          const locMatch = block.match(/<div class="list-item-location">\s*(.*?)\s*<\/div>/);
-          if (titleMatch && dateMatch && dateMatch[1].includes(todayStr)) {
-            events.push({
-              title: titleMatch[1].trim(),
-              date: dateMatch[1].trim(),
-              time: timeMatch ? timeMatch[1].trim() : '',
-              location: locMatch ? locMatch[1].trim() : '',
-              type: 'Community',
-              link: 'https://www.blacksburg.gov/community/community-engagement/calendar'
-            });
-          }
-        }
-      } catch (e) {}
-      try {
-        // --- HokieSports ---
-        const vtRes = await fetch('https://hokiesports.com/');
-        const vtHtml = await vtRes.text();
-        // Regex: Find each event block (look for <div class="event-item"> ... )
-        const vtEventBlockRegex = /<div class="event-item([\s\S]*?)<\/div>\s*<\/div>/g;
-        let blockMatch;
-        const todayStr = getTodayString();
-        while ((blockMatch = vtEventBlockRegex.exec(vtHtml))) {
-          const block = blockMatch[1];
-          // Extract title
-          const titleMatch = block.match(/<div class="event-title">\s*<a [^>]+>(.*?)<\/a>/);
-          // Extract date
-          const dateMatch = block.match(/<div class="event-date">\s*(.*?)\s*<\/div>/);
-          // Extract time
-          const timeMatch = block.match(/<div class="event-time">\s*(.*?)\s*<\/div>/);
-          // Extract location
-          const locMatch = block.match(/<div class="event-location">\s*(.*?)\s*<\/div>/);
-          if (titleMatch && dateMatch && dateMatch[1].includes(todayStr)) {
-            events.push({
-              title: titleMatch[1].trim(),
-              date: dateMatch[1].trim(),
-              time: timeMatch ? timeMatch[1].trim() : '',
-              location: locMatch ? locMatch[1].trim() : '',
-              type: 'Sports',
-              link: 'https://hokiesports.com/'
-            });
-          }
-        }
-      } catch (e) {}
-      // Fallback if no events found
-      if (events.length === 0) {
-        events = [
-          {
-            title: 'Blacksburg Farmers Market',
-            date: 'Sat, Sep 14',
-            time: '8:00am - 2:00pm',
-            location: 'Downtown Blacksburg',
-            type: 'Community',
-            link: 'https://www.blacksburg.gov/community/community-engagement/calendar'
-          },
-          {
-            title: 'VT Football vs. UVA',
-            date: 'Sat, Sep 14',
-            time: '3:30pm',
-            location: 'Lane Stadium',
-            type: 'Sports',
-            link: 'https://hokiesports.com/'
-          }
-        ];
-      }
-      setSuggestedEvents(events);
-      setLoadingEvents(false);
-    };
-    fetchEvents();
-    // eslint-disable-next-line
-  }, [activeTab]);
-=======
->>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
 
   useEffect(() => {
     loadUserSchedule();
@@ -199,47 +75,9 @@ export default function ScheduleScreen() {
     const user = await userDataService.getCurrentUser();
     if (user) {
       setCurrentUser(user);
-<<<<<<< HEAD
-      // Fetch CRNs from backend user_courses table
-      const userCRNs = await userDataService.getUserCRNs(user.vtEmail);
       
-      // Get course data for each CRN
-      const courses: any[] = [];
-      for (const crn of userCRNs) {
-        const course = await courseDataService.getCourseByCRN(crn);
-        if (course) {
-          courses.push(course);
-        }
-      }
-      
-      // Get friends for user
-      const friends = await userDataService.getFriendsForUser(user.vtEmail);
-      
-      // Convert to ClassSchedule format
-      const classSchedule: ClassSchedule[] = await Promise.all(courses.map(async (course: any) => {
-        // Find friends in this course (same section)
-        const friendsInThisCourse = friends.filter(friend => 
-          friend.crns.includes(course.crn)
-        ).map(friend => friend.name);
-
-        // Find friends in other sections (same subject+courseNumber, different CRN)
-        const friendsInOtherSections = friends.filter(friend =>
-          friend.crns.some(async friendCrn => {
-            // Get the friend's course object for this CRN
-            let friendCourse = courses.find(c => c.crn === friendCrn);
-            if (!friendCourse) friendCourse = await courseDataService.getCourseByCRN(friendCrn);
-            return friendCourse &&
-              friendCourse.subject === course.subject &&
-              friendCourse.courseNumber === course.courseNumber &&
-              friendCrn !== course.crn;
-          }) && !friend.crns.includes(course.crn)
-        ).map(friend => friend.name);
-
-=======
-      
-      // Get user's CRNs
-      const crns = [user.crn1, user.crn2, user.crn3, user.crn4, user.crn5, user.crn6, user.crn7, user.crn8]
-        .filter((crn): crn is string => Boolean(crn));
+      // Get user's CRNs from the new in-memory mapping
+      const crns = userDataService.getUserCRNs(user.vtEmail);
       
       // Use efficient course data service (only checks matchlist, not all users)
       const { courses, friendsInCourses } = await courseDataService.getUserCourseData(
@@ -253,7 +91,6 @@ export default function ScheduleScreen() {
         const courseKey = `${course.subject}-${course.courseNumber}`;
         const friendsInThisCourse = friendsInCourses.get(courseKey) || [];
         
->>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
         return {
           crn: course.crn,
           courseName: course.courseName,
@@ -264,13 +101,6 @@ export default function ScheduleScreen() {
           courseNumber: course.courseNumber,
           credits: course.credits,
           instructor: course.instructor,
-<<<<<<< HEAD
-          friendsInSameSection: friendsInThisCourse,
-          friendsInOtherSections: friendsInOtherSections
-        };
-      }));
-      setSchedule(classSchedule);
-=======
           friendsInSameSection: friendsInThisCourse, // All friends in this course (same or different sections)
           friendsInOtherSections: [] // We'll handle this differently if needed
         };
@@ -302,10 +132,6 @@ export default function ScheduleScreen() {
           location: 'D2 Dining Hall'
         }
       ]);
->>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
-
-      // Start with empty clubs/events - let user add their own
-      setClubEvents([]);
     }
   };
 
@@ -369,11 +195,7 @@ export default function ScheduleScreen() {
       </View>
       
       <Text style={styles.itemTitle}>
-<<<<<<< HEAD
-        {type === 'class' ? (item as ClassSchedule).courseName :
-=======
         {type === 'class' ? (item as ClassSchedule).courseName : 
->>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
          type === 'freeTime' ? (item as FreeTime).activity : 
          (item as ClubEvent).name}
       </Text>
@@ -484,14 +306,8 @@ export default function ScheduleScreen() {
       case 'freeTime':
         return (
           <>
-<<<<<<< HEAD
-            <View style={{ paddingLeft: 24 }}>
-              {renderFreeTimeBars()}
-            </View>
-=======
             <Text style={styles.sectionTitle}>Free Time</Text>
             {renderFreeTimeGrid()}
->>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
             {renderActivityModal()}
           </>
         );
@@ -528,75 +344,20 @@ export default function ScheduleScreen() {
         });
         return (
           <View style={{ alignItems: 'center', justifyContent: 'center', flex: 1, paddingTop: 40 }}>
-<<<<<<< HEAD
-            <Image
-              source={require('../assets/icon.png')}
-              style={{ width: 120, height: 120, marginBottom: 24, opacity: 0.95, borderRadius: 60, borderWidth: 4, borderColor: '#d67b32', backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12 }}
-            />
-=======
             <Image source={require('../assets/icon.png')} style={{ width: 80, height: 80, marginBottom: 16 }} />
->>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
             {nextClass ? (
               <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>
                 Next: {nextClass.courseName} in {nextClass.startHour - now.getHours()} hrs with {nextClass.friendsInSameSection.join(', ')}
               </Text>
             ) : (
-<<<<<<< HEAD
-              <>
-                <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: '#d67b32', textAlign: 'center' }}>
-                  You have no more classes today!
-                </Text>
-                <Text style={{ fontSize: 16, color: '#444', marginTop: 8, marginBottom: 16, textAlign: 'center' }}>
-                  The SamePath icon is your guide to exploring campus and making the most of your free time.
-                </Text>
-                <Text style={{ fontSize: 15, color: '#666', textAlign: 'center', marginBottom: 8 }}>
-                  • Check out campus events happening tonight
-                  {'\n'}• Discover deals at local restaurants
-                  {'\n'}• Meet up with friends or explore new spots
-                </Text>
-                <Text style={{ fontSize: 14, color: '#aaa', textAlign: 'center', marginTop: 12 }}>
-                  Tap the orange blocks in Free Time to plan your next adventure!
-                </Text>
-              </>
-=======
               <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>
                 No more classes today!
               </Text>
->>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
             )}
             {freeNow.length > 0 ? (
               <Text style={{ fontSize: 16, color: '#d67b32', marginTop: 12 }}>
                 {freeNow[0].activity} is available now. Would you like to join?
               </Text>
-<<<<<<< HEAD
-            ) : null}
-            <View style={{ marginTop: 32 }}>
-              <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#d67b32', marginBottom: 12 }}>Suggested Events</Text>
-              {loadingEvents ? (
-                <ActivityIndicator />
-              ) : suggestedEvents.length === 0 ? (
-                <Text style={{ color: '#888' }}>No events found for today.</Text>
-              ) : (
-                suggestedEvents.map(event => (
-                  <View key={event.title + event.date} style={{ marginBottom: 16, backgroundColor: '#f8f9fa', borderRadius: 10, padding: 14 }}>
-                    <Text style={{ fontWeight: 'bold', fontSize: 16 }}>{event.title}</Text>
-                    <Text style={{ color: '#666', marginTop: 2 }}>{event.date} • {event.time}</Text>
-                    <Text style={{ color: '#888', marginTop: 2 }}>{event.location}</Text>
-                    <Text style={{ color: event.type === 'Sports' ? '#a94442' : '#31708f', marginTop: 2 }}>{event.type}</Text>
-                    <TouchableOpacity onPress={() => Linking.openURL(event.link)}>
-                      <Text style={{ color: '#d67b32', marginTop: 6, fontWeight: 'bold' }}>More info</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))
-              )}
-            </View>
-          </View>
-        );
-      case 'network':
-        return <NetworkScreen />;
-      case 'preferences':
-        return <PreferencesScreen />;
-=======
             ) : (
               <Text style={{ fontSize: 16, color: '#888', marginTop: 12 }}>
                 You have free time! Explore campus or connect with friends.
@@ -618,7 +379,6 @@ export default function ScheduleScreen() {
             <Text style={styles.emptyText}>Preferences Coming Soon</Text>
           </View>
         );
->>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
       default:
         return null;
     }
@@ -646,11 +406,7 @@ export default function ScheduleScreen() {
     // Parse event.days and event.time to fill scheduledBlocks
     // For simplicity, assume event.days is like 'M W F' and event.time is '14:00-15:15'
     const dayMap: { [key: string]: number } = { S: 0, M: 1, T: 2, W: 3, TH: 4, F: 5, SA: 6 };
-<<<<<<< HEAD
-    
-=======
     const daysArr = event.days.split(' ').map(d => d.trim()).filter(Boolean);
->>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
     let startHour = 0, endHour = 0;
     if (event.time) {
       const match = event.time.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
@@ -659,13 +415,6 @@ export default function ScheduleScreen() {
         endHour = parseInt(match[3], 10);
       }
     }
-<<<<<<< HEAD
-    
-    // Parse days string into array
-    const daysArr = event.days.split(' ').filter(day => day.trim() !== '');
-    
-=======
->>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
     daysArr.forEach(dayStr => {
       let dayIdx = dayMap[dayStr] ?? -1;
       if (dayIdx >= 0) {
@@ -679,248 +428,6 @@ export default function ScheduleScreen() {
   // Helper to get key for block
   const getBlockKey = (day: number, hour: number) => `${day}-${hour}`;
 
-<<<<<<< HEAD
-  // Helper: Convert time string (e.g., '9:00') to minutes since 00:00
-  const timeStringToMinutes = (time: string) => {
-    const [h, m] = time.split(':').map(Number);
-    return h * 60 + (m || 0);
-  };
-
-  // Helper: Convert minutes since 00:00 to time string (e.g., 540 -> '9:00')
-  const minutesToTimeString = (minutes: number) => {
-    const h = Math.floor(minutes / 60);
-    const m = minutes % 60;
-    return `${h}:${m.toString().padStart(2, '0')}`;
-  };
-
-  // Constants for day and time range
-  const START_MINUTES = 6 * 60; // 6:00am
-  const END_MINUTES = 23 * 60; // 11:00pm
-  const TOTAL_DAY_MINUTES = END_MINUTES - START_MINUTES;
-
-  // Calculate free and scheduled intervals for each day
-  const getDailyIntervals = (schedule: ClassSchedule[]) => {
-    // For each day, collect scheduled intervals as [start, end] in minutes
-    const dayIntervals: { [dayIdx: number]: { scheduled: [number, number][], free: [number, number][] } } = {};
-    for (let i = 0; i < 7; i++) {
-      dayIntervals[i] = { scheduled: [], free: [] };
-    }
-    schedule.forEach(event => {
-      // Parse event.days (e.g., 'M W F')
-      const dayMap: { [key: string]: number } = { S: 0, M: 1, T: 2, W: 3, TH: 4, F: 5, SA: 6 };
-      const daysArr = event.days.split(' ').filter(day => day.trim() !== '');
-      let start = START_MINUTES, end = START_MINUTES;
-      if (event.time) {
-        // Support both '9:00-9:50' and '09:00-10:15' formats
-        const match = event.time.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
-        if (match) {
-          start = parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
-          end = parseInt(match[3], 10) * 60 + parseInt(match[4], 10);
-        }
-      }
-      daysArr.forEach(dayStr => {
-        let dayIdx = dayMap[dayStr] ?? -1;
-        if (dayIdx >= 0) {
-          // Clamp to day range
-          const s = Math.max(start, START_MINUTES);
-          const e = Math.min(end, END_MINUTES);
-          if (e > s) dayIntervals[dayIdx].scheduled.push([s, e]);
-        }
-      });
-    });
-    // For each day, compute free intervals
-    for (let i = 0; i < 7; i++) {
-      const scheduled = dayIntervals[i].scheduled.sort((a, b) => a[0] - b[0]);
-      let free: [number, number][] = [];
-      let prevEnd = START_MINUTES;
-      for (const [s, e] of scheduled) {
-        if (s > prevEnd) free.push([prevEnd, s]);
-        prevEnd = Math.max(prevEnd, e);
-      }
-      if (prevEnd < END_MINUTES) free.push([prevEnd, END_MINUTES]);
-      dayIntervals[i].free = free;
-    }
-    return dayIntervals;
-  };
-
-  // Helper to get time from x position on bar
-  const getTimeFromX = (x: number, barWidth: number) => {
-    const pct = Math.max(0, Math.min(1, x / barWidth));
-    const minutes = Math.round(START_MINUTES + pct * TOTAL_DAY_MINUTES);
-    return minutesToTimeString(minutes);
-  };
-
-  // PanResponder for each bar
-  const getBarPanResponder = (dayIdx: number) => PanResponder.create({
-    onStartShouldSetPanResponder: () => true,
-    onPanResponderGrant: evt => {
-      const bar = barRefs.current[dayIdx];
-      if (bar) {
-        bar.measure((fx, fy, width, height, px, py) => {
-          const x = evt.nativeEvent.pageX - px;
-          setTooltip({ dayIdx, x, time: getTimeFromX(x, width) });
-        });
-      }
-    },
-    onPanResponderMove: evt => {
-      const bar = barRefs.current[dayIdx];
-      if (bar) {
-        bar.measure((fx, fy, width, height, px, py) => {
-          const x = evt.nativeEvent.pageX - px;
-          setTooltip({ dayIdx, x, time: getTimeFromX(x, width) });
-        });
-      }
-    },
-    onPanResponderRelease: () => setTooltip(null),
-    onPanResponderTerminate: () => setTooltip(null),
-  });
-
-  // New: Render free time bars for each day, with time labels and improved visuals
-  const renderFreeTimeBars = () => {
-    const intervals = getDailyIntervals(schedule);
-    // Only show 6am and 11pm as time labels
-    return (
-      <View style={{ marginTop: 24, marginRight: 24 }}>
-        {DAYS.map((day, dayIdx) => (
-          <View key={day} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
-            <Text style={{ width: 48, fontWeight: 'bold', fontSize: 13 }}>{day.slice(0, 3)}</Text>
-            <View
-              ref={el => { barRefs.current[dayIdx] = el; }}
-              style={{ flex: 1, height: 32, justifyContent: 'center', position: 'relative' }}
-              {...getBarPanResponder(dayIdx).panHandlers}
-            >
-              {/* Bar background */}
-              <View style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                height: 18,
-                backgroundColor: '#f3f3f3',
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: '#e0e0e0',
-                top: 7,
-              }} />
-              {/* Scheduled overlays */}
-              {intervals[dayIdx].scheduled.map(([s, e], i) => {
-                const leftPct = ((s - START_MINUTES) / TOTAL_DAY_MINUTES) * 100;
-                const widthPct = ((e - s) / TOTAL_DAY_MINUTES) * 100;
-                return (
-                  <View
-                    key={`sched-${s}`}
-                    style={{
-                      position: 'absolute',
-                      left: `${leftPct}%`,
-                      width: `${widthPct}%`,
-                      height: 18,
-                      backgroundColor: '#d1d5db',
-                      borderRadius: 12,
-                      top: 7,
-                    }}
-                  />
-                );
-              })}
-              {/* Free overlays (orange, clickable) */}
-              {intervals[dayIdx].free.map(([fStart, fEnd], i) => {
-                const leftPct = ((fStart - START_MINUTES) / TOTAL_DAY_MINUTES) * 100;
-                const widthPct = ((fEnd - fStart) / TOTAL_DAY_MINUTES) * 100;
-                return (
-                  <TouchableOpacity
-                    key={`free-${fStart}`}
-                    style={{
-                      position: 'absolute',
-                      left: `${leftPct}%`,
-                      width: `${widthPct}%`,
-                      height: 18,
-                      backgroundColor: '#FFA500',
-                      borderRadius: 12,
-                      top: 7,
-                      opacity: 0.92,
-                    }}
-                    activeOpacity={0.7}
-                    onPress={() => setActivityModal({ dayIdx, start: fStart, end: fEnd })}
-                  />
-                );
-              })}
-              {/* End time labels */}
-              <View style={{ position: 'absolute', left: 0, top: 28 }}>
-                <Text style={{ fontSize: 11, color: '#888' }}>6am</Text>
-              </View>
-              <View style={{ position: 'absolute', right: 0, top: 28 }}>
-                <Text style={{ fontSize: 11, color: '#888' }}>11pm</Text>
-              </View>
-              {/* Tooltip for time under finger */}
-              {tooltip && tooltip.dayIdx === dayIdx && (
-                <View style={{
-                  position: 'absolute',
-                  left: Math.max(0, Math.min(tooltip.x - 32, Dimensions.get('window').width - 120)),
-                  top: -28,
-                  backgroundColor: '#fff',
-                  borderRadius: 8,
-                  paddingHorizontal: 10,
-                  paddingVertical: 4,
-                  borderWidth: 1,
-                  borderColor: '#FFA500',
-                  shadowColor: '#000',
-                  shadowOpacity: 0.08,
-                  shadowRadius: 2,
-                  shadowOffset: { width: 0, height: 1 },
-                  zIndex: 10,
-                }}>
-                  <Text style={{ color: '#d67b32', fontWeight: 'bold', fontSize: 13 }}>{tooltip.time}</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        ))}
-        {/* Activity modal for free block */}
-        {activityModal && (
-          <RNModal
-            visible={!!activityModal}
-            transparent
-            animationType="slide"
-            onRequestClose={() => setActivityModal(null)}
-          >
-            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' }}>
-              <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, width: 320, alignItems: 'center' }}>
-                <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 12 }}>
-                  Set Activities for {DAYS[activityModal.dayIdx]} {minutesToTimeString(activityModal.start)}–{minutesToTimeString(activityModal.end)}
-                </Text>
-                {ACTIVITIES.map(activity => (
-                  <TouchableOpacity
-                    key={activity}
-                    style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}
-                    onPress={() => {
-                      // For now, just close modal
-                      setActivityModal(null);
-                    }}
-                  >
-                    <View style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: 4,
-                      borderWidth: 1,
-                      borderColor: '#d67b32',
-                      backgroundColor: '#fff',
-                      marginRight: 8,
-                    }} />
-                    <Text>{activity}</Text>
-                  </TouchableOpacity>
-                ))}
-                <TouchableOpacity
-                  style={{ marginTop: 16, backgroundColor: '#d67b32', borderRadius: 6, padding: 10, alignItems: 'center', width: 120 }}
-                  onPress={() => setActivityModal(null)}
-                >
-                  <Text style={{ color: '#fff', fontWeight: 'bold' }}>Done</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </RNModal>
-        )}
-      </View>
-    );
-  };
-=======
   // Render the weekly grid
   const renderFreeTimeGrid = () => (
     <View style={{ flexDirection: 'row', marginTop: 16 }}>
@@ -972,7 +479,6 @@ export default function ScheduleScreen() {
       </ScrollView>
     </View>
   );
->>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
 
   // Modal for activity selection
   const renderActivityModal = () => {
