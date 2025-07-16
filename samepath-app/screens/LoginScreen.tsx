@@ -10,17 +10,12 @@ import {
   Image,
   StatusBar,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { userDataService } from '../services/UserDataService';
 
-interface LoginScreenNavigationProp {
-  navigate: (screen: string) => void;
-  goBack: () => void;
-}
-
 export default function LoginScreen() {
-  const navigation = useNavigation<LoginScreenNavigationProp>();
+  const navigation = useNavigation<NavigationProp<any>>();
   const logo = require('../assets/SamePathLogo.png');
 
   const [vtEmail, setVtEmail] = useState('');
@@ -35,8 +30,8 @@ export default function LoginScreen() {
     try {
       const user = await userDataService.login(vtEmail.trim(), password);
       if (user) {
-        // Navigate to main app
-        navigation.navigate('Schedule');
+        // Navigate to main app, SamePath main page
+        navigation.reset({ index: 0, routes: [{ name: 'SamePath' }] });
       } else {
         Alert.alert('Login failed', 'Incorrect VT email or password. Please try again or use the setup screen for new accounts.');
       }

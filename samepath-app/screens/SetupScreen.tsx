@@ -10,17 +10,12 @@ import {
   Image,
   StatusBar,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { userDataService } from '../services/UserDataService';
 
-interface SetupScreenNavigationProp {
-  navigate: (screen: string) => void;
-  goBack: () => void;
-}
-
 export default function SetupScreen() {
-  const navigation = useNavigation<SetupScreenNavigationProp>();
+  const navigation = useNavigation<NavigationProp<any>>();
   const logo = require('../assets/SamePathLogo.png');
 
   const [vtPid, setVtPid] = useState('');
@@ -42,7 +37,7 @@ export default function SetupScreen() {
     // Activate user and set password
     const user = await userDataService.activateUserWithCodeAndPid(vtPid, vtCode, password);
     if (user) {
-      navigation.navigate('Schedule');
+      navigation.reset({ index: 0, routes: [{ name: 'SamePath' }] });
     } else {
       Alert.alert('Error activating account. Please check your PID and code, then try again.');
     }

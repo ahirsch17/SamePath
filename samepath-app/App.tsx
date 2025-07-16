@@ -9,6 +9,8 @@ import TermsScreen from './screens/TermsScreen';
 import ConnectionsScreen from './screens/ConnectionsScreen';
 import ContactsListScreen from './screens/ContactsListScreen';
 import ScheduleScreen from './screens/ScheduledScreen';
+import SamePathScreen from './screens/SamePathScreen';
+import FreeTimeScreen from './screens/FreeTimeScreen';
 import CRNLookupScreen from './screens/CRNLookupScreen';
 import NetworkScreen from './screens/NetworkScreen';
 import PreferencesScreen from './screens/PreferencesScreen';
@@ -26,6 +28,8 @@ export default function App() {
         <Stack.Screen name="Connections" component={ConnectionsScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Contacts" component={ContactsListScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Schedule" component={ScheduleScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="SamePath" component={SamePathScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="FreeTime" component={FreeTimeScreen} options={{ headerShown: false }} />
         <Stack.Screen name="CRNLookup" component={CRNLookupScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Network" component={NetworkScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Preferences" component={PreferencesScreen} options={{ headerShown: false }} />

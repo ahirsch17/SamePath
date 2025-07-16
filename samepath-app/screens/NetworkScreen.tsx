@@ -1,121 +1,241 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  ScrollView,
+  StyleSheet,
+  Platform,
+  StatusBar,
+  Alert,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { userDataService } from '../services/UserDataService';
 import { courseDataService } from '../services/CourseDataService';
 
-interface GroupMembership {
-  [groupId: string]: string[]; // groupId -> array of vtEmails
+interface NetworkScreenNavigationProp {
+  navigate: (screen: string) => void;
+  goBack: () => void;
+}
+
+interface ClassGroup {
+  crn: string;
+  subject: string;
+  courseNumber: string;
+  courseName: string;
+  memberCount: number;
+  isJoined: boolean;
 }
 
 export default function NetworkScreen() {
+  const navigation = useNavigation<NetworkScreenNavigationProp>();
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [userCRNs, setUserCRNs] = useState<string[]>([]);
-  const [courses, setCourses] = useState<any[]>([]);
-  const [groupMembership, setGroupMembership] = useState<GroupMembership>({});
+  const [classGroups, setClassGroups] = useState<ClassGroup[]>([]);
 
   useEffect(() => {
-    (async () => {
-      const user = await userDataService.getCurrentUser();
-      setCurrentUser(user);
-      if (user) {
-        const crns = await userDataService.getUserCRNs(user.vtEmail);
-        setUserCRNs(crns);
-        const courseObjs = await Promise.all(crns.map(crn => courseDataService.getCourseByCRN(crn)));
-        setCourses(courseObjs.filter(Boolean));
-      }
-    })();
+    loadClassGroups();
   }, []);
 
-  // Simulate in-memory group membership (per session)
-  const joinGroup = (groupId: string) => {
-    if (!currentUser) return;
-    setGroupMembership(prev => {
-      const members = prev[groupId] || [];
-      if (!members.includes(currentUser.vtEmail)) {
-        return { ...prev, [groupId]: [...members, currentUser.vtEmail] };
-      }
-      return prev;
-    });
-  };
-  const leaveGroup = (groupId: string) => {
-    if (!currentUser) return;
-    setGroupMembership(prev => {
-      const members = prev[groupId] || [];
-      return { ...prev, [groupId]: members.filter(vtEmail => vtEmail !== currentUser.vtEmail) };
-    });
+  const loadClassGroups = async () => {
+    const user = await userDataService.getCurrentUser();
+    if (user) {
+      setCurrentUser(user);
+      
+      // Get all available courses and create groups
+      const allCourses = await courseDataService.getAllCourses();
+      const userCRNs = userDataService.getUserCRNs(user.vtEmail);
+      
+      const groups: ClassGroup[] = allCourses.map((course: any) => ({
+        crn: course.crn,
+        subject: course.subject,
+        courseNumber: course.courseNumber,
+        courseName: course.courseName,
+        memberCount: Math.floor(Math.random() * 15) + 1, // Random member count for demo
+        isJoined: userCRNs.includes(course.crn)
+      }));
+      
+      setClassGroups(groups);
+    }
   };
 
-  // Get all users for a group
-  const getUsersForGroup = (groupId: string) => {
-    const members = groupMembership[groupId] || [];
-    return userDataService.getAllUsersSync().filter(u => members.includes(u.vtEmail));
+  const toggleGroupMembership = (crn: string) => {
+    setClassGroups(prev => 
+      prev.map(group => 
+        group.crn === crn 
+          ? { ...group, isJoined: !group.isJoined, memberCount: group.isJoined ? group.memberCount - 1 : group.memberCount + 1 }
+          : group
+      )
+    );
+    
+    // In a real app, you'd update the backend here
+    Alert.alert(
+      'Group Updated', 
+      `You ${classGroups.find(g => g.crn === crn)?.isJoined ? 'left' : 'joined'} the group!`
+    );
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.header}>Network Groups</Text>
-      {courses.map(course => {
-        const classGroupId = `${course.subject}-${course.courseNumber}`;
-        const crnGroupId = `${course.subject}-${course.courseNumber}-${course.crn}`;
-        return (
-          <View key={crnGroupId} style={styles.courseBlock}>
-            <Text style={styles.courseTitle}>{course.subject} {course.courseNumber}: {course.courseName}</Text>
-            {/* CRN group */}
-            <View style={styles.groupBlock}>
-              <Text style={styles.groupLabel}>Section Group (CRN {course.crn})</Text>
-              <View style={styles.membersRow}>
-                {getUsersForGroup(crnGroupId).map(u => (
-                  <Text key={u.vtEmail} style={styles.memberName}>{u.name}</Text>
-                ))}
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Network</Text>
+        <View style={{ width: 24 }} />
+      </View>
+
+      {/* Content */}
+      <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
+        <Text style={styles.sectionTitle}>Available Class Groups</Text>
+        
+        {classGroups.map((group) => (
+          <View key={group.crn} style={styles.groupCard}>
+            <View style={styles.groupInfo}>
+              <Text style={styles.courseCode}>{group.subject} {group.courseNumber}</Text>
+              <Text style={styles.courseName}>{group.courseName}</Text>
+              <Text style={styles.crnText}>CRN: {group.crn}</Text>
+              <View style={styles.memberInfo}>
+                <Ionicons name="people-outline" size={16} color="#666" />
+                <Text style={styles.memberCount}>{group.memberCount} members</Text>
               </View>
-              {groupMembership[crnGroupId]?.includes(currentUser?.vtEmail) ? (
-                <TouchableOpacity style={styles.leaveBtn} onPress={() => leaveGroup(crnGroupId)}>
-                  <Text style={styles.leaveBtnText}>Leave</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity style={styles.joinBtn} onPress={() => joinGroup(crnGroupId)}>
-                  <Text style={styles.joinBtnText}>Join</Text>
-                </TouchableOpacity>
-              )}
             </View>
-            {/* Class group */}
-            <View style={styles.groupBlock}>
-              <Text style={styles.groupLabel}>Class Group ({course.subject} {course.courseNumber})</Text>
-              <View style={styles.membersRow}>
-                {getUsersForGroup(classGroupId).map(u => (
-                  <Text key={u.vtEmail} style={styles.memberName}>{u.name}</Text>
-                ))}
-              </View>
-              {groupMembership[classGroupId]?.includes(currentUser?.vtEmail) ? (
-                <TouchableOpacity style={styles.leaveBtn} onPress={() => leaveGroup(classGroupId)}>
-                  <Text style={styles.leaveBtnText}>Leave</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity style={styles.joinBtn} onPress={() => joinGroup(classGroupId)}>
-                  <Text style={styles.joinBtnText}>Join</Text>
-                </TouchableOpacity>
-              )}
-            </View>
+            
+            <TouchableOpacity
+              style={[
+                styles.joinButton,
+                group.isJoined ? styles.leaveButton : styles.joinButton
+              ]}
+              onPress={() => toggleGroupMembership(group.crn)}
+            >
+              <Text style={[
+                styles.joinButtonText,
+                group.isJoined ? styles.leaveButtonText : styles.joinButtonText
+              ]}>
+                {group.isJoined ? 'Leave' : 'Join'}
+              </Text>
+            </TouchableOpacity>
           </View>
-        );
-      })}
-    </ScrollView>
+        ))}
+        
+        {classGroups.length === 0 && (
+          <View style={styles.emptyState}>
+            <Ionicons name="people-outline" size={48} color="#ccc" />
+            <Text style={styles.emptyText}>No class groups available</Text>
+          </View>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff', padding: 20 },
-  header: { fontSize: 22, fontWeight: 'bold', marginBottom: 20, color: '#d67b32' },
-  courseBlock: { marginBottom: 28, padding: 16, backgroundColor: '#f8f9fa', borderRadius: 12, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 2, shadowOffset: { width: 0, height: 1 } },
-  courseTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 10, color: '#333' },
-  groupBlock: { marginBottom: 12, padding: 12, backgroundColor: '#fff', borderRadius: 8, borderWidth: 1, borderColor: '#eee' },
-  groupLabel: { fontSize: 14, fontWeight: '600', marginBottom: 6, color: '#d67b32' },
-  membersRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 },
-  memberName: { backgroundColor: '#e3e3e3', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, marginRight: 6, marginBottom: 4, fontSize: 13 },
-  joinBtn: { backgroundColor: '#d67b32', borderRadius: 6, paddingVertical: 6, paddingHorizontal: 18, alignSelf: 'flex-start' },
-  joinBtnText: { color: '#fff', fontWeight: 'bold' },
-  leaveBtn: { backgroundColor: '#fff', borderRadius: 6, paddingVertical: 6, paddingHorizontal: 18, borderWidth: 1, borderColor: '#d67b32', alignSelf: 'flex-start' },
-  leaveBtnText: { color: '#d67b32', fontWeight: 'bold' },
-});
-
-// Add getAllUsersSync to UserDataService for synchronous access 
+  container: {
+    flex: 1,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 60,
+    backgroundColor: '#fff',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#222',
+  },
+  contentContainer: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#222',
+    marginBottom: 15,
+    marginTop: 20,
+  },
+  groupCard: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#d67b32',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  groupInfo: {
+    flex: 1,
+  },
+  courseCode: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#222',
+    marginBottom: 4,
+  },
+  courseName: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  crnText: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 8,
+  },
+  memberInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  memberCount: {
+    fontSize: 12,
+    color: '#666',
+    marginLeft: 4,
+  },
+  joinButton: {
+    backgroundColor: '#d67b32',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  leaveButton: {
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#d67b32',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  joinButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  leaveButtonText: {
+    color: '#d67b32',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#ccc',
+    marginTop: 16,
+  },
+}); 

@@ -4,23 +4,10 @@ export interface User {
   name: string;
   vtEmail: string;
   phone: string;
-  activated: boolean;
   matchList?: string[];
   lastScheduleUpdate?: number;
   courseDataCache?: string;
   friendsInCoursesCache?: string;
-}
-
-export interface Course {
-  crn: string;
-  subject: string;
-  courseNumber: string;
-  courseName: string;
-  credits: number;
-  time: string;
-  days: string;
-  location: string;
-  instructor: string;
 }
 
 export interface UserCourse {
@@ -74,21 +61,18 @@ class UserDataService {
       name: 'Alexis Hirsch',
       vtEmail: 'alexishirsch',
       phone: '555-0001',
-      activated: true, // Set to true so classes always show up
       matchList: ['saarthak', 'jjohn', 'emilyt', 'brianw', 'sophiaz'] // Alexis adds them, but they don't add her back
     },
     {
       name: 'Saarthak Sangwan',
       vtEmail: 'saarthak',
       phone: '555-0002',
-      activated: false,
       matchList: ['alexishirsch', 'jjohn']
     },
     {
       name: 'Jake Johnson',
       vtEmail: 'jjohn',
       phone: '555-0003',
-      activated: false,
       matchList: ['alexishirsch', 'saarthak']
     },
     // New fake users
@@ -96,21 +80,18 @@ class UserDataService {
       name: 'Emily Tran',
       vtEmail: 'emilyt',
       phone: '555-0004',
-      activated: true,
       matchList: []
     },
     {
       name: 'Brian Wu',
       vtEmail: 'brianw',
       phone: '555-0005',
-      activated: true,
       matchList: []
     },
     {
       name: 'Sophia Zhang',
       vtEmail: 'sophiaz',
       phone: '555-0006',
-      activated: true,
       matchList: []
     },
   ];
@@ -139,21 +120,6 @@ class UserDataService {
     { vtEmail: 'emilyt', crn: '83534' }, // CS 3114 (same as Alexis)
     { vtEmail: 'brianw', crn: '83484' }, // MATH 1225 (same as Alexis)
     { vtEmail: 'sophiaz', crn: '87290' }, // ENGL 1106 (same as Alexis)
-  ];
-
-  private courses: Course[] = [
-    { crn: '83534', subject: 'CS', courseNumber: '3114', courseName: 'Data Structures', credits: 3, time: '9:00-9:50', days: 'M W F', location: 'McBryde 100', instructor: 'Dr. Smith' },
-    { crn: '83484', subject: 'MATH', courseNumber: '1225', courseName: 'Calculus of a Single Variable', credits: 4, time: '10:00-10:50', days: 'M W F', location: 'Hahn 120', instructor: 'Dr. Jones' },
-    { crn: '87290', subject: 'ENGL', courseNumber: '1106', courseName: 'First-Year Writing', credits: 3, time: '11:00-11:50', days: 'T TH', location: 'Shanks 180', instructor: 'Dr. Lee' },
-    { crn: '83339', subject: 'CS', courseNumber: '2505', courseName: 'Intro to Comp Org', credits: 3, time: '2:00-2:50', days: 'M W F', location: 'Goodwin 195', instructor: 'Dr. Kim' },
-    { crn: '12479', subject: 'CS', courseNumber: '2114', courseName: 'Software Design', credits: 3, time: '1:00-1:50', days: 'M W F', location: 'McBryde 200', instructor: 'Dr. Patel' },
-    { crn: '44444', subject: 'MATH', courseNumber: '2204', courseName: 'Multivariable Calculus', credits: 3, time: '3:00-3:50', days: 'T TH', location: 'Hahn 130', instructor: 'Dr. White' },
-    { crn: '33333', subject: 'PHYS', courseNumber: '2305', courseName: 'Physics I', credits: 4, time: '8:00-8:50', days: 'M W F', location: 'Randolph 210', instructor: 'Dr. Black' },
-    { crn: '83351', subject: 'CS', courseNumber: '1944', courseName: 'Freshman Seminar', credits: 1, time: '4:00-4:50', days: 'F', location: 'McBryde 300', instructor: 'Dr. Green' },
-    { crn: '83535', subject: 'CS', courseNumber: '3114', courseName: 'Data Structures', credits: 3, time: '9:00-9:50', days: 'M W F', location: 'McBryde 100', instructor: 'Dr. Smith' },
-    { crn: '23452', subject: 'MATH', courseNumber: '2214', courseName: 'Intro to Differential Equations', credits: 3, time: '12:00-12:50', days: 'M W F', location: 'Hahn 140', instructor: 'Dr. Brown' },
-    { crn: '91578', subject: 'STAT', courseNumber: '3604', courseName: 'Statistics for Engineers', credits: 3, time: '1:00-1:50', days: 'T TH', location: 'McBryde 210', instructor: 'Dr. Blue' },
-    { crn: '22222', subject: 'ENGL', courseNumber: '1105', courseName: 'First-Year Writing', credits: 3, time: '11:00-11:50', days: 'T TH', location: 'Shanks 180', instructor: 'Dr. Lee' }
   ];
 
   private currentUser: User | null = null;
@@ -203,21 +169,15 @@ class UserDataService {
         // Fallback to hardcoded data
         const existingUser = this.users.find(user => user.vtEmail === vtEmail);
         if (existingUser) {
-          if (existingUser.activated) {
-            return null; // User already exists and is activated
-          } else {
-            // User exists but not activated, update password and activate
-            existingUser.activated = true;
-            this.currentUser = existingUser;
-            return existingUser;
-          }
+          // User exists but not activated, update password and activate
+          this.currentUser = existingUser;
+          return existingUser;
         }
 
         // Create new user
         const newUser: User = {
           name: "", // Will be filled later
           vtEmail,
-          activated: false,
           matchList: [],
           phone: "" // Added missing property
         };
@@ -259,9 +219,8 @@ class UserDataService {
         return null;
       } else {
         // Fallback to hardcoded data
-        const user = this.users.find(u => u.vtEmail === vtPid && !u.activated);
+        const user = this.users.find(u => u.vtEmail === vtPid);
         if (user) {
-          user.activated = true;
           this.currentUser = user;
           return user;
         }
@@ -299,7 +258,7 @@ class UserDataService {
       } else {
         // Fallback to hardcoded data
         const user = this.users.find(u => u.vtEmail === vtEmail);
-        if (user && user.activated) {
+        if (user) {
           this.currentUser = user;
           return user;
         }
@@ -477,7 +436,6 @@ class UserDataService {
         const currentUserCrns = this.getUserCRNs(this.currentUser.vtEmail);
         return this.users.filter(user => {
           if (user.vtEmail === this.currentUser?.vtEmail) return false;
-          if (!user.activated) return false;
           const userCrns = this.getUserCRNs(user.vtEmail);
           // Check for CRN overlaps
           const hasOverlap = currentUserCrns.some(crn => userCrns.includes(crn));
@@ -494,24 +452,18 @@ class UserDataService {
   }
 
   async getContacts(): Promise<Contact[]> {
-    return [
-      { name: 'David Bolivar', selected: 'yes', starred: true },
-      { name: 'Elise Richards', selected: 'yes', starred: false },
-      { name: 'Jake Mitchell', selected: 'yes', starred: true },
-      { name: 'Ian Hedstrom', selected: 'no', starred: false },
-      { name: 'Gaby Moretti', selected: 'yes', starred: true },
-      { name: 'Isaac Gutierrez', selected: 'no', starred: false },
-    ];
+    // For demo: return all users as if they are in contacts
+    return this.users.map(user => ({
+      name: user.name,
+      selected: 'yes',
+      starred: true
+    }));
   }
 
   async logout(): Promise<void> {
     this.currentUser = null;
   }
 
-  async isUserActivated(vtEmail: string): Promise<boolean> {
-    const user = this.users.find(u => u.vtEmail === vtEmail);
-    return user?.activated || false;
-  }
 }
 
 export const userDataService = new UserDataService(); 
