@@ -1,6 +1,10 @@
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
+<<<<<<< HEAD
+=======
+const bcrypt = require('bcryptjs');
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
 const jwt = require('jsonwebtoken');
 
 const app = express();
@@ -24,6 +28,7 @@ async function initializeDatabase() {
     const createUsersTable = `
       CREATE TABLE IF NOT EXISTS users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+<<<<<<< HEAD
         pid VARCHAR(20),
         vt_email VARCHAR(50) UNIQUE NOT NULL,
         name VARCHAR(100) NOT NULL,
@@ -31,6 +36,25 @@ async function initializeDatabase() {
         password_code VARCHAR(10) NOT NULL,
         activated BOOLEAN DEFAULT false,
         match_list TEXT[] DEFAULT '{}',
+=======
+        vt_email VARCHAR(50) UNIQUE NOT NULL,
+        name VARCHAR(100) NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        activated BOOLEAN DEFAULT false,
+        crn1 VARCHAR(10),
+        crn2 VARCHAR(10),
+        crn3 VARCHAR(10),
+        crn4 VARCHAR(10),
+        crn5 VARCHAR(10),
+        crn6 VARCHAR(10),
+        crn7 VARCHAR(10),
+        crn8 VARCHAR(10),
+        match_list TEXT[] DEFAULT '{}',
+        location VARCHAR(100),
+        last_schedule_update TIMESTAMP DEFAULT NOW(),
+        course_data_cache JSONB,
+        friends_in_courses_cache JSONB,
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
         created_at TIMESTAMP DEFAULT NOW(),
         updated_at TIMESTAMP DEFAULT NOW()
       );
@@ -72,6 +96,7 @@ async function initializeDatabase() {
       );
     `;
 
+<<<<<<< HEAD
     const createUserCoursesTable = `
       CREATE TABLE IF NOT EXISTS user_courses (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -85,6 +110,11 @@ async function initializeDatabase() {
     await pool.query(createCoursesTable);
     await pool.query(createMatchesTable);
     await pool.query(createUserCoursesTable);
+=======
+    await pool.query(createUsersTable);
+    await pool.query(createCoursesTable);
+    await pool.query(createMatchesTable);
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
     
     // Create indexes
     await pool.query('CREATE INDEX IF NOT EXISTS idx_users_vt_email ON users(vt_email);');
@@ -107,12 +137,21 @@ app.post('/users', async (req, res) => {
   try {
     const { vtEmail, name, password, activated = false } = req.body;
     
+<<<<<<< HEAD
     // Ensure password is a string
     const passwordCode = String(password);
     
     const result = await pool.query(
       'INSERT INTO users (vt_email, name, password_code, activated) VALUES ($1, $2, $3, $4) RETURNING *',
       [vtEmail, name, passwordCode, activated]
+=======
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 10);
+    
+    const result = await pool.query(
+      'INSERT INTO users (vt_email, name, password_hash, activated) VALUES ($1, $2, $3, $4) RETURNING *',
+      [vtEmail, name, passwordHash, activated]
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
     );
     
     res.json(result.rows[0]);
@@ -218,7 +257,11 @@ app.get('/users/:vtEmail/friends', async (req, res) => {
     
     // Get friend data efficiently with a single query
     const friendsResult = await pool.query(
+<<<<<<< HEAD
       `SELECT vt_email, name, phone 
+=======
+      `SELECT vt_email, name, crn1, crn2, crn3, crn4, crn5, crn6, crn7, crn8 
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
        FROM users 
        WHERE vt_email = ANY($1)`,
       [matchList]
@@ -227,7 +270,12 @@ app.get('/users/:vtEmail/friends', async (req, res) => {
     const friends = friendsResult.rows.map(row => ({
       vtEmail: row.vt_email,
       name: row.name,
+<<<<<<< HEAD
       phone: row.phone
+=======
+      crns: [row.crn1, row.crn2, row.crn3, row.crn4, row.crn5, row.crn6, row.crn7, row.crn8]
+        .filter(crn => crn !== null)
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
     }));
     
     res.json({ friends });
@@ -260,8 +308,17 @@ app.put('/users/:vtEmail', async (req, res) => {
     }
     
     // Clear cache if schedule or match list was updated
+<<<<<<< HEAD
     if (updateData.match_list) {
       await clearCacheForUsersWithMatch(vtEmail);
+=======
+    if (updateData.match_list || updateData.crn1 || updateData.crn2 || updateData.crn3 || 
+        updateData.crn4 || updateData.crn5 || updateData.crn6 || updateData.crn7 || updateData.crn8) {
+      await clearUserCache(vtEmail);
+      if (updateData.match_list) {
+        await clearCacheForUsersWithMatch(vtEmail);
+      }
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
     }
     
     res.json(result.rows[0]);
@@ -309,12 +366,21 @@ app.delete('/users/:vtEmail', async (req, res) => {
 // VT Integration endpoint - for VT website to send user data
 app.post('/vt-import', async (req, res) => {
   try {
+<<<<<<< HEAD
     const { vtEmail, name, phone, matchList = [] } = req.body;
     
     // Validate required fields
     if (!vtEmail || !name || !phone || !Array.isArray(matchList)) {
       return res.status(400).json({ 
         error: 'Missing required fields: vtEmail, name, phone, matchList (array)' 
+=======
+    const { vtEmail, name, crns, matchList = [] } = req.body;
+    
+    // Validate required fields
+    if (!vtEmail || !name || !crns || !Array.isArray(crns)) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: vtEmail, name, crns (array)' 
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
       });
     }
     
@@ -325,7 +391,11 @@ app.post('/vt-import', async (req, res) => {
     const activationCode = Math.floor(100000 + Math.random() * 900000).toString();
     
     // Hash the activation code (temporary password)
+<<<<<<< HEAD
     const passwordCode = activationCode; // Store as plain text for debugging
+=======
+    const passwordHash = await bcrypt.hash(activationCode, 10);
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
     
     // Check if user already exists
     const existingUser = await pool.query(
@@ -349,11 +419,23 @@ app.post('/vt-import', async (req, res) => {
     // Create user with VT data including match_list
     const result = await pool.query(
       `INSERT INTO users (
+<<<<<<< HEAD
         vt_email, name, phone, password_code, activated, match_list
       ) VALUES ($1, $2, $3, $4, $5, $6) 
       RETURNING *`,
       [
         cleanVtEmail, name, phone, passwordCode, false, // activated = false
+=======
+        vt_email, name, password_hash, activated, 
+        crn1, crn2, crn3, crn4, crn5, crn6, crn7, crn8,
+        match_list
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) 
+      RETURNING *`,
+      [
+        cleanVtEmail, name, passwordHash, false, // activated = false
+        crns[0] || null, crns[1] || null, crns[2] || null, crns[3] || null,
+        crns[4] || null, crns[5] || null, crns[6] || null, crns[7] || null,
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
         finalMatchList // Pass the array directly to pg
       ]
     );
@@ -369,7 +451,11 @@ app.post('/vt-import', async (req, res) => {
     Full Email: ${cleanVtEmail}@vt.edu
     Name: ${name}
     Activation Code: ${activationCode}
+<<<<<<< HEAD
     Phone: ${phone}
+=======
+    CRNs: ${crns.join(', ')}
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
     Match List: ${finalMatchList.join(', ')}
     ============================
     `);
@@ -424,7 +510,11 @@ app.post('/vt-activate', async (req, res) => {
     console.log('--- VT-Activate Debug ---');
     console.log('VT PID:', vtEmail);
     console.log('Activation code (input):', activationCode);
+<<<<<<< HEAD
     console.log('Password hash (from DB):', user.password_code);
+=======
+    console.log('Password hash (from DB):', user.password_hash);
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
     
     // Check if user is already activated
     if (user.activated) {
@@ -433,7 +523,11 @@ app.post('/vt-activate', async (req, res) => {
     }
     
     // Verify activation code using bcrypt.compare
+<<<<<<< HEAD
     const isValidCode = activationCode === user.password_code;
+=======
+    const isValidCode = await bcrypt.compare(activationCode, user.password_hash);
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
     console.log('bcrypt.compare result:', isValidCode);
     if (!isValidCode) {
       console.log('Invalid activation code.');
@@ -443,10 +537,18 @@ app.post('/vt-activate', async (req, res) => {
     // Always activate user when valid code is provided
     // If newPassword is provided, update password too
     if (newPassword) {
+<<<<<<< HEAD
       // Set new password as plain text (for debugging)
       await pool.query(
         'UPDATE users SET password_code = $1, activated = $2, updated_at = NOW() WHERE vt_email = $3',
         [newPassword, true, vtEmail]
+=======
+      const newPasswordHash = await bcrypt.hash(newPassword, 10);
+      
+      await pool.query(
+        'UPDATE users SET password_hash = $1, activated = $2, updated_at = NOW() WHERE vt_email = $3',
+        [newPasswordHash, true, vtEmail]
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
       );
       
       console.log('User activated and password updated.');
@@ -588,7 +690,11 @@ app.post('/login', async (req, res) => {
     }
     
     // Verify password using bcrypt.compare
+<<<<<<< HEAD
     const isValidPassword = password === user.password_code;
+=======
+    const isValidPassword = await bcrypt.compare(password, user.password_hash);
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
@@ -599,8 +705,21 @@ app.post('/login', async (req, res) => {
         vtEmail: user.vt_email,
         name: user.name,
         activated: user.activated,
+<<<<<<< HEAD
         phone: user.phone,
         matchList: user.match_list || []
+=======
+        crn1: user.crn1,
+        crn2: user.crn2,
+        crn3: user.crn3,
+        crn4: user.crn4,
+        crn5: user.crn5,
+        crn6: user.crn6,
+        crn7: user.crn7,
+        crn8: user.crn8,
+        matchList: user.match_list || [],
+        location: user.location
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
       }
     });
     
@@ -623,7 +742,11 @@ app.post('/get-user-by-code', async (req, res) => {
     const usersResult = await pool.query('SELECT * FROM users WHERE activated = false');
     
     for (const user of usersResult.rows) {
+<<<<<<< HEAD
       const isValidCode = activationCode === user.password_code;
+=======
+      const isValidCode = await bcrypt.compare(activationCode, user.password_hash);
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
       if (isValidCode) {
         return res.json({
           success: true,
@@ -661,12 +784,21 @@ app.post('/users/:vtEmail/new-activation-code', async (req, res) => {
     
     // Generate new activation code
     const newActivationCode = Math.floor(100000 + Math.random() * 900000).toString();
+<<<<<<< HEAD
     const passwordCode = newActivationCode;
     
     // Update user with new activation code
     await pool.query(
       'UPDATE users SET password_code = $1, updated_at = NOW() WHERE vt_email = $2',
       [passwordCode, vtEmail]
+=======
+    const passwordHash = await bcrypt.hash(newActivationCode, 10);
+    
+    // Update user with new activation code
+    await pool.query(
+      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE vt_email = $2',
+      [passwordHash, vtEmail]
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
     );
     
     res.json({
@@ -727,11 +859,23 @@ app.put('/users/batch', async (req, res) => {
     for (const user of users) {
       const result = await pool.query(
         `UPDATE users 
+<<<<<<< HEAD
          SET name = $1, phone = $2, match_list = $3, updated_at = NOW()
          WHERE vt_email = $4 
          RETURNING *`,
         [
           user.name, user.phone, user.matchList, user.vtEmail
+=======
+         SET name = $1, crn1 = $2, crn2 = $3, crn3 = $4, crn4 = $5, 
+             crn5 = $6, crn6 = $7, crn7 = $8, crn8 = $9, match_list = $10,
+             location = $11, last_schedule_update = NOW(), updated_at = NOW()
+         WHERE vt_email = $12 
+         RETURNING *`,
+        [
+          user.name, user.crn1, user.crn2, user.crn3, user.crn4,
+          user.crn5, user.crn6, user.crn7, user.crn8, user.matchList,
+          user.location, user.vtEmail
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
         ]
       );
       
@@ -797,6 +941,7 @@ app.put('/courses/batch', async (req, res) => {
   }
 });
 
+<<<<<<< HEAD
 // Endpoint to get all CRNs for a user
 app.get('/user-courses/:vtEmail', async (req, res) => {
   try {
@@ -817,6 +962,8 @@ app.get('/user-courses/:vtEmail', async (req, res) => {
   }
 });
 
+=======
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
 // Initialize database and start server
 async function startServer() {
   try {

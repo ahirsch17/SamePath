@@ -1,30 +1,46 @@
 // Populate database with sample users for testing
 // This simulates VT sending student data to your database
 
+<<<<<<< HEAD
 const API_URL = 'https://samepath-cngzt0g16-alexis-hirschs-projects.vercel.app'; 
+=======
+const API_URL = 'https://samepath-dzdue4twj-alexis-hirschs-projects.vercel.app'; 
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
 
 // Sample users that will be imported to database
 const sampleUsers = [
   {
     vtEmail: "alexishirsch", // PID only (before @vt.edu)
     name: "Alexis Hirsch",
+<<<<<<< HEAD
     phone: "555-0001",
     crns: ["83534", "83484", "87290", "83339"],
     matchList: [] // Can see Saarthak and Jake's schedules
+=======
+    crns: ["83534", "83484", "87290", "83339"]
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
   },
   {
     vtEmail: "saarthak", // PID only
     name: "Saarthak Sangwan", 
+<<<<<<< HEAD
     phone: "555-0002",
     crns: ["83534", "12479", "83484", "44444", "33333", "83351"],
     matchList: ["alexishirsch", "jjohn"] // Can see Alexis and Jake's schedules
+=======
+    crns: ["83534", "12479", "83484", "44444", "33333", "83351"]
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
   },
   {
     vtEmail: "jjohn", // PID only
     name: "Jake Johnson",
+<<<<<<< HEAD
     phone: "555-0003",
     crns: ["83535", "23452", "91578", "87290", "22222"],
     matchList: ["alexishirsch", "saarthak"] // Can see Alexis and Saarthak's schedules
+=======
+    crns: ["83535", "23452", "91578", "87290", "22222"]
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
   }
 ];
 
@@ -50,7 +66,10 @@ async function populateSampleUsers() {
         console.log(`   Full Email: ${result.user.fullEmail}`);
         console.log(`   Activation Code: ${result.user.activationCode}`);
         console.log(`   CRNs: ${userData.crns.join(', ')}`);
+<<<<<<< HEAD
         console.log(`   Match List: ${userData.matchList.join(', ')}`);
+=======
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
         console.log(`   Activated: ${result.user.activated}\n`);
       } else {
         const error = await response.json();

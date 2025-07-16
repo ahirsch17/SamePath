@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import React, { useState, useEffect, useRef } from 'react';
+=======
+import React, { useState, useEffect } from 'react';
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
 import {
   View,
   Text,
@@ -10,18 +14,24 @@ import {
   Image,
   Alert,
   Modal,
+<<<<<<< HEAD
   PanResponder,
   Dimensions,
   Linking,
   ActivityIndicator,
+=======
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
 } from 'react-native';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { userDataService } from '../services/UserDataService';
 import { courseDataService, CourseInfo, CourseMatch } from '../services/CourseDataService';
 import { Modal as RNModal } from 'react-native';
+<<<<<<< HEAD
 import NetworkScreen from './NetworkScreen';
 import PreferencesScreen from './PreferencesScreen';
+=======
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
 
 interface ScheduleScreenNavigationProp {
   navigate: (screen: string) => void;
@@ -72,6 +82,7 @@ export default function ScheduleScreen() {
   const [showFriendModal, setShowFriendModal] = useState(false);
   const [selectedBlock, setSelectedBlock] = useState<{ day: number; hour: number } | null>(null);
   const [blockActivities, setBlockActivities] = useState<{ [key: string]: string[] }>({});
+<<<<<<< HEAD
   const [tooltip, setTooltip] = useState<{ dayIdx: number; x: number; time: string } | null>(null);
   const [activityModal, setActivityModal] = useState<{ dayIdx: number; start: number; end: number } | null>(null);
   const barRefs = useRef<(View | null)[]>([]);
@@ -177,6 +188,8 @@ export default function ScheduleScreen() {
     fetchEvents();
     // eslint-disable-next-line
   }, [activeTab]);
+=======
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
 
   useEffect(() => {
     loadUserSchedule();
@@ -186,6 +199,7 @@ export default function ScheduleScreen() {
     const user = await userDataService.getCurrentUser();
     if (user) {
       setCurrentUser(user);
+<<<<<<< HEAD
       // Fetch CRNs from backend user_courses table
       const userCRNs = await userDataService.getUserCRNs(user.vtEmail);
       
@@ -221,6 +235,25 @@ export default function ScheduleScreen() {
           }) && !friend.crns.includes(course.crn)
         ).map(friend => friend.name);
 
+=======
+      
+      // Get user's CRNs
+      const crns = [user.crn1, user.crn2, user.crn3, user.crn4, user.crn5, user.crn6, user.crn7, user.crn8]
+        .filter((crn): crn is string => Boolean(crn));
+      
+      // Use efficient course data service (only checks matchlist, not all users)
+      const { courses, friendsInCourses } = await courseDataService.getUserCourseData(
+        user.vtEmail,
+        crns,
+        user.matchList || []
+      );
+      
+      // Convert to ClassSchedule format
+      const classSchedule: ClassSchedule[] = courses.map(course => {
+        const courseKey = `${course.subject}-${course.courseNumber}`;
+        const friendsInThisCourse = friendsInCourses.get(courseKey) || [];
+        
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
         return {
           crn: course.crn,
           courseName: course.courseName,
@@ -231,11 +264,45 @@ export default function ScheduleScreen() {
           courseNumber: course.courseNumber,
           credits: course.credits,
           instructor: course.instructor,
+<<<<<<< HEAD
           friendsInSameSection: friendsInThisCourse,
           friendsInOtherSections: friendsInOtherSections
         };
       }));
       setSchedule(classSchedule);
+=======
+          friendsInSameSection: friendsInThisCourse, // All friends in this course (same or different sections)
+          friendsInOtherSections: [] // We'll handle this differently if needed
+        };
+      });
+      
+      setSchedule(classSchedule);
+      
+      // Sample free time activities
+      setFreeTime([
+        {
+          id: '1',
+          activity: 'Gym',
+          time: '2:00 PM - 3:30 PM',
+          days: 'M W F',
+          location: 'McComas Hall'
+        },
+        {
+          id: '2',
+          activity: 'Study',
+          time: '4:00 PM - 6:00 PM',
+          days: 'T TH',
+          location: 'Newman Library'
+        },
+        {
+          id: '3',
+          activity: 'Lunch',
+          time: '12:00 PM - 1:00 PM',
+          days: 'M T W TH F',
+          location: 'D2 Dining Hall'
+        }
+      ]);
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
 
       // Start with empty clubs/events - let user add their own
       setClubEvents([]);
@@ -302,7 +369,11 @@ export default function ScheduleScreen() {
       </View>
       
       <Text style={styles.itemTitle}>
+<<<<<<< HEAD
         {type === 'class' ? (item as ClassSchedule).courseName :
+=======
+        {type === 'class' ? (item as ClassSchedule).courseName : 
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
          type === 'freeTime' ? (item as FreeTime).activity : 
          (item as ClubEvent).name}
       </Text>
@@ -413,9 +484,14 @@ export default function ScheduleScreen() {
       case 'freeTime':
         return (
           <>
+<<<<<<< HEAD
             <View style={{ paddingLeft: 24 }}>
               {renderFreeTimeBars()}
             </View>
+=======
+            <Text style={styles.sectionTitle}>Free Time</Text>
+            {renderFreeTimeGrid()}
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
             {renderActivityModal()}
           </>
         );
@@ -452,15 +528,20 @@ export default function ScheduleScreen() {
         });
         return (
           <View style={{ alignItems: 'center', justifyContent: 'center', flex: 1, paddingTop: 40 }}>
+<<<<<<< HEAD
             <Image
               source={require('../assets/icon.png')}
               style={{ width: 120, height: 120, marginBottom: 24, opacity: 0.95, borderRadius: 60, borderWidth: 4, borderColor: '#d67b32', backgroundColor: '#fff', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 12 }}
             />
+=======
+            <Image source={require('../assets/icon.png')} style={{ width: 80, height: 80, marginBottom: 16 }} />
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
             {nextClass ? (
               <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>
                 Next: {nextClass.courseName} in {nextClass.startHour - now.getHours()} hrs with {nextClass.friendsInSameSection.join(', ')}
               </Text>
             ) : (
+<<<<<<< HEAD
               <>
                 <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: '#d67b32', textAlign: 'center' }}>
                   You have no more classes today!
@@ -477,11 +558,17 @@ export default function ScheduleScreen() {
                   Tap the orange blocks in Free Time to plan your next adventure!
                 </Text>
               </>
+=======
+              <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8 }}>
+                No more classes today!
+              </Text>
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
             )}
             {freeNow.length > 0 ? (
               <Text style={{ fontSize: 16, color: '#d67b32', marginTop: 12 }}>
                 {freeNow[0].activity} is available now. Would you like to join?
               </Text>
+<<<<<<< HEAD
             ) : null}
             <View style={{ marginTop: 32 }}>
               <Text style={{ fontSize: 18, fontWeight: 'bold', color: '#d67b32', marginBottom: 12 }}>Suggested Events</Text>
@@ -509,6 +596,29 @@ export default function ScheduleScreen() {
         return <NetworkScreen />;
       case 'preferences':
         return <PreferencesScreen />;
+=======
+            ) : (
+              <Text style={{ fontSize: 16, color: '#888', marginTop: 12 }}>
+                You have free time! Explore campus or connect with friends.
+              </Text>
+            )}
+          </View>
+        );
+      case 'network':
+        return (
+          <View style={styles.emptyState}>
+            <Ionicons name="people-outline" size={48} color="#ccc" />
+            <Text style={styles.emptyText}>Network Features Coming Soon</Text>
+          </View>
+        );
+      case 'preferences':
+        return (
+          <View style={styles.emptyState}>
+            <Ionicons name="settings-outline" size={48} color="#ccc" />
+            <Text style={styles.emptyText}>Preferences Coming Soon</Text>
+          </View>
+        );
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
       default:
         return null;
     }
@@ -536,7 +646,11 @@ export default function ScheduleScreen() {
     // Parse event.days and event.time to fill scheduledBlocks
     // For simplicity, assume event.days is like 'M W F' and event.time is '14:00-15:15'
     const dayMap: { [key: string]: number } = { S: 0, M: 1, T: 2, W: 3, TH: 4, F: 5, SA: 6 };
+<<<<<<< HEAD
     
+=======
+    const daysArr = event.days.split(' ').map(d => d.trim()).filter(Boolean);
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
     let startHour = 0, endHour = 0;
     if (event.time) {
       const match = event.time.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
@@ -545,10 +659,13 @@ export default function ScheduleScreen() {
         endHour = parseInt(match[3], 10);
       }
     }
+<<<<<<< HEAD
     
     // Parse days string into array
     const daysArr = event.days.split(' ').filter(day => day.trim() !== '');
     
+=======
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
     daysArr.forEach(dayStr => {
       let dayIdx = dayMap[dayStr] ?? -1;
       if (dayIdx >= 0) {
@@ -562,6 +679,7 @@ export default function ScheduleScreen() {
   // Helper to get key for block
   const getBlockKey = (day: number, hour: number) => `${day}-${hour}`;
 
+<<<<<<< HEAD
   // Helper: Convert time string (e.g., '9:00') to minutes since 00:00
   const timeStringToMinutes = (time: string) => {
     const [h, m] = time.split(':').map(Number);
@@ -802,6 +920,59 @@ export default function ScheduleScreen() {
       </View>
     );
   };
+=======
+  // Render the weekly grid
+  const renderFreeTimeGrid = () => (
+    <View style={{ flexDirection: 'row', marginTop: 16 }}>
+      {/* Days column */}
+      <View style={{ width: 80 }}>
+        {DAYS.map((day, i) => (
+          <View key={day} style={{ height: 32, justifyContent: 'center' }}>
+            <Text style={{ fontWeight: 'bold' }}>{day.slice(0, 3)}</Text>
+          </View>
+        ))}
+      </View>
+      {/* Hours grid */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View>
+          {/* Hour labels */}
+          <View style={{ flexDirection: 'row' }}>
+            {HOURS.map(hour => (
+              <View key={hour} style={{ width: 40, alignItems: 'center' }}>
+                <Text style={{ fontSize: 10 }}>{hour}:00</Text>
+              </View>
+            ))}
+          </View>
+          {/* Grid blocks */}
+          {DAYS.map((_, dayIdx) => (
+            <View key={dayIdx} style={{ flexDirection: 'row' }}>
+              {HOURS.map(hour => {
+                const blockKey = getBlockKey(dayIdx, hour);
+                const isFree = !scheduledBlocks.has(blockKey);
+                return (
+                  <TouchableOpacity
+                    key={blockKey}
+                    style={{
+                      width: 40,
+                      height: 32,
+                      margin: 1,
+                      backgroundColor: isFree ? '#FFA500' : '#eee',
+                      borderRadius: 4,
+                      borderWidth: selectedBlock && selectedBlock.day === dayIdx && selectedBlock.hour === hour ? 2 : 0,
+                      borderColor: '#d67b32',
+                    }}
+                    disabled={!isFree}
+                    onPress={() => setSelectedBlock({ day: dayIdx, hour })}
+                  />
+                );
+              })}
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  );
+>>>>>>> 0be5101354353b476f2562f6b92527ca7904d7f9
 
   // Modal for activity selection
   const renderActivityModal = () => {
