@@ -11,68 +11,37 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { userDataService } from '../services/UserDataService';
-import { courseDataService } from '../services/CourseDataService';
-
-interface NetworkScreenNavigationProp {
-  navigate: (screen: string) => void;
-  goBack: () => void;
-}
-
-interface ClassGroup {
-  crn: string;
-  subject: string;
-  courseNumber: string;
-  courseName: string;
-  memberCount: number;
-  isJoined: boolean;
-}
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ApiService from '../services/ApiService';
 
 export default function NetworkScreen() {
-  const navigation = useNavigation<NetworkScreenNavigationProp>();
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [classGroups, setClassGroups] = useState<ClassGroup[]>([]);
+  const navigation = useNavigation();
+  const [classGroups, setClassGroups] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadClassGroups();
+    const fetchGroups = async () => {
+      setLoading(true);
+      const user_id = await AsyncStorage.getItem('user_id');
+      if (!user_id) {
+        Alert.alert('Error', 'User not logged in.');
+        setLoading(false);
+        return;
+      }
+      try {
+        const response = await ApiService.getAvailableCourses(Number(user_id));
+        setClassGroups(response.data.courses || []);
+      } catch (error) {
+        Alert.alert('Error', 'Failed to fetch class groups.');
+      }
+      setLoading(false);
+    };
+    fetchGroups();
   }, []);
 
-  const loadClassGroups = async () => {
-    const user = await userDataService.getCurrentUser();
-    if (user) {
-      setCurrentUser(user);
-      
-      // Get all available courses and create groups
-      const allCourses = await courseDataService.getAllCourses();
-      const userCRNs = userDataService.getUserCRNs(user.vtEmail);
-      
-      const groups: ClassGroup[] = allCourses.map((course: any) => ({
-        crn: course.crn,
-        subject: course.subject,
-        courseNumber: course.courseNumber,
-        courseName: course.courseName,
-        memberCount: Math.floor(Math.random() * 15) + 1, // Random member count for demo
-        isJoined: userCRNs.includes(course.crn)
-      }));
-      
-      setClassGroups(groups);
-    }
-  };
-
   const toggleGroupMembership = (crn: string) => {
-    setClassGroups(prev => 
-      prev.map(group => 
-        group.crn === crn 
-          ? { ...group, isJoined: !group.isJoined, memberCount: group.isJoined ? group.memberCount - 1 : group.memberCount + 1 }
-          : group
-      )
-    );
-    
-    // In a real app, you'd update the backend here
-    Alert.alert(
-      'Group Updated', 
-      `You ${classGroups.find(g => g.crn === crn)?.isJoined ? 'left' : 'joined'} the group!`
-    );
+    // TODO: Integrate with backend for join/leave
+    Alert.alert('Group Updated', 'Join/leave functionality coming soon.');
   };
 
   return (
@@ -92,8 +61,9 @@ export default function NetworkScreen() {
       {/* Content */}
       <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionTitle}>Available Class Groups</Text>
-        
-        {classGroups.map((group) => (
+        {loading ? (
+          <Text>Loading...</Text>
+        ) : classGroups.map((group) => (
           <View key={group.crn} style={styles.groupCard}>
             <View style={styles.groupInfo}>
               <Text style={styles.courseCode}>{group.subject} {group.courseNumber}</Text>
@@ -101,28 +71,18 @@ export default function NetworkScreen() {
               <Text style={styles.crnText}>CRN: {group.crn}</Text>
               <View style={styles.memberInfo}>
                 <Ionicons name="people-outline" size={16} color="#666" />
-                <Text style={styles.memberCount}>{group.memberCount} members</Text>
+                <Text style={styles.memberCount}>{group.memberCount || 0} members</Text>
               </View>
             </View>
-            
             <TouchableOpacity
-              style={[
-                styles.joinButton,
-                group.isJoined ? styles.leaveButton : styles.joinButton
-              ]}
+              style={styles.joinButton}
               onPress={() => toggleGroupMembership(group.crn)}
             >
-              <Text style={[
-                styles.joinButtonText,
-                group.isJoined ? styles.leaveButtonText : styles.joinButtonText
-              ]}>
-                {group.isJoined ? 'Leave' : 'Join'}
-              </Text>
+              <Text style={styles.joinButtonText}>Join</Text>
             </TouchableOpacity>
           </View>
         ))}
-        
-        {classGroups.length === 0 && (
+        {classGroups.length === 0 && !loading && (
           <View style={styles.emptyState}>
             <Ionicons name="people-outline" size={48} color="#ccc" />
             <Text style={styles.emptyText}>No class groups available</Text>

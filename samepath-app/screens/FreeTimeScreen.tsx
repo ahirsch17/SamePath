@@ -1,6 +1,8 @@
-import React, { useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Modal as RNModal, PanResponder } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Modal as RNModal, PanResponder, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ApiService from '../services/ApiService';
 
 const START_MINUTES = 6 * 60; // 6:00am
 const END_MINUTES = 23 * 60; // 11:00pm
@@ -8,24 +10,9 @@ const TOTAL_DAY_MINUTES = END_MINUTES - START_MINUTES;
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const ACTIVITIES = ['Gym', 'Rest/Nap', 'Eat', 'Study', 'Read', 'Religion', 'Social', 'Other'];
 
-// Demo: fake schedule (replace with real data as needed)
-const demoSchedule = [
-  { days: 'M W F', time: '9:00-9:50' },
-  { days: 'M W F', time: '10:00-10:50' },
-  { days: 'T TH', time: '11:00-11:50' },
-  { days: 'M W F', time: '2:00-2:50' },
-  { days: 'M W F', time: '1:00-1:50' },
-  { days: 'T TH', time: '1:00-1:50' },
-];
-
 const timeStringToMinutes = (time: string) => {
   const [h, m] = time.split(':').map(Number);
   return h * 60 + (m || 0);
-};
-const minutesToTimeString = (minutes: number) => {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return `${h}:${m.toString().padStart(2, '0')}`;
 };
 
 const getDailyIntervals = (schedule: { days: string; time: string }[]) => {
@@ -43,7 +30,6 @@ const getDailyIntervals = (schedule: { days: string; time: string }[]) => {
         start = parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
         end = parseInt(match[3], 10) * 60 + parseInt(match[4], 10);
       } else {
-        // Support single time (e.g., '9:00-9:50')
         const parts = event.time.split('-');
         if (parts.length === 2) {
           start = timeStringToMinutes(parts[0]);
@@ -77,13 +63,29 @@ const getDailyIntervals = (schedule: { days: string; time: string }[]) => {
 export default function FreeTimeScreen() {
   const [tooltip, setTooltip] = useState<{ dayIdx: number; x: number; time: string } | null>(null);
   const [activityModal, setActivityModal] = useState<{ dayIdx: number; start: number; end: number } | null>(null);
+  const [schedule, setSchedule] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const barRefs = useRef<(View | null)[]>([]);
 
-  const getTimeFromX = (x: number, barWidth: number) => {
-    const pct = Math.max(0, Math.min(1, x / barWidth));
-    const minutes = Math.round(START_MINUTES + pct * TOTAL_DAY_MINUTES);
-    return minutesToTimeString(minutes);
-  };
+  useEffect(() => {
+    const fetchSchedule = async () => {
+      setLoading(true);
+      const user_id = await AsyncStorage.getItem('user_id');
+      if (!user_id) {
+        Alert.alert('Error', 'User not logged in.');
+        setLoading(false);
+        return;
+      }
+      try {
+        const response = await ApiService.getSchedule(Number(user_id));
+        setSchedule(response.data.schedule || []);
+      } catch (error) {
+        Alert.alert('Error', 'Failed to fetch schedule.');
+      }
+      setLoading(false);
+    };
+    fetchSchedule();
+  }, []);
 
   const getBarPanResponder = (dayIdx: number) => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
@@ -109,7 +111,14 @@ export default function FreeTimeScreen() {
     onPanResponderTerminate: () => setTooltip(null),
   });
 
-  const intervals = getDailyIntervals(demoSchedule);
+  const getTimeFromX = (x: number, barWidth: number) => {
+    const pct = Math.max(0, Math.min(1, x / barWidth));
+    const minutes = Math.round(START_MINUTES + pct * TOTAL_DAY_MINUTES);
+    return `${Math.floor(minutes / 60)}:${(minutes % 60).toString().padStart(2, '0')}`;
+  };
+
+  // Convert API schedule to intervals
+  const intervals = getDailyIntervals(schedule);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#fff' }}>
@@ -122,7 +131,9 @@ export default function FreeTimeScreen() {
 
       {/* Content */}
       <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
-        {DAYS.map((day, dayIdx) => (
+        {loading ? (
+          <Text>Loading...</Text>
+        ) : DAYS.map((day, dayIdx) => (
           <View key={day} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
             <Text style={{ width: 48, fontWeight: 'bold', fontSize: 13 }}>{day.slice(0, 3)}</Text>
             <View
@@ -220,7 +231,7 @@ export default function FreeTimeScreen() {
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' }}>
             <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, width: 320, alignItems: 'center' }}>
               <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 12 }}>
-                Set Activities for {DAYS[activityModal.dayIdx]} {minutesToTimeString(activityModal.start)}–{minutesToTimeString(activityModal.end)}
+                Set Activities for {DAYS[activityModal.dayIdx]} {`${Math.floor(activityModal.start / 60)}:${(activityModal.start % 60).toString().padStart(2, '0')}`}–{`${Math.floor(activityModal.end / 60)}:${(activityModal.end % 60).toString().padStart(2, '0')}`}
               </Text>
               {ACTIVITIES.map(activity => (
                 <TouchableOpacity

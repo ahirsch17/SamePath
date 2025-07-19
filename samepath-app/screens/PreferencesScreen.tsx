@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, Switch, StyleSheet, TouchableOpacity, Platform, StatusBar } from 'react-native';
+import { View, Text, Switch, StyleSheet, TouchableOpacity, Platform, StatusBar, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ApiService from '../services/ApiService';
 
 interface PreferencesScreenNavigationProp {
   navigate: (screen: string) => void;
@@ -15,6 +17,15 @@ export default function PreferencesScreen() {
   const [showActivityPrefs, setShowActivityPrefs] = useState(false);
   const [notifications, setNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
+
+  // Example handler for saving preferences
+  const handleToggle = async (setter: (v: boolean) => void, value: boolean, key: string) => {
+    setter(value);
+    // TODO: Save preference to backend
+    // const user_id = await AsyncStorage.getItem('user_id');
+    // await ApiService.savePreference(user_id, key, value);
+    Alert.alert('Preference Updated', `Preference '${key}' set to ${value}`);
+  };
 
   return (
     <View style={styles.container}>
@@ -42,7 +53,7 @@ export default function PreferencesScreen() {
             </View>
             <Switch 
               value={shareSchedule} 
-              onValueChange={setShareSchedule}
+              onValueChange={v => handleToggle(setShareSchedule, v, 'shareSchedule')}
               trackColor={{ false: '#e0e0e0', true: '#d67b32' }}
               thumbColor={shareSchedule ? '#fff' : '#f4f3f4'}
             />
@@ -55,7 +66,7 @@ export default function PreferencesScreen() {
             </View>
             <Switch 
               value={shareFreeTime} 
-              onValueChange={setShareFreeTime}
+              onValueChange={v => handleToggle(setShareFreeTime, v, 'shareFreeTime')}
               trackColor={{ false: '#e0e0e0', true: '#d67b32' }}
               thumbColor={shareFreeTime ? '#fff' : '#f4f3f4'}
             />
@@ -68,7 +79,7 @@ export default function PreferencesScreen() {
             </View>
             <Switch 
               value={showActivityPrefs} 
-              onValueChange={setShowActivityPrefs}
+              onValueChange={v => handleToggle(setShowActivityPrefs, v, 'showActivityPrefs')}
               trackColor={{ false: '#e0e0e0', true: '#d67b32' }}
               thumbColor={showActivityPrefs ? '#fff' : '#f4f3f4'}
             />
@@ -85,7 +96,7 @@ export default function PreferencesScreen() {
             </View>
             <Switch 
               value={notifications} 
-              onValueChange={setNotifications}
+              onValueChange={v => handleToggle(setNotifications, v, 'notifications')}
               trackColor={{ false: '#e0e0e0', true: '#d67b32' }}
               thumbColor={notifications ? '#fff' : '#f4f3f4'}
             />
@@ -102,7 +113,7 @@ export default function PreferencesScreen() {
             </View>
             <Switch 
               value={darkMode} 
-              onValueChange={setDarkMode}
+              onValueChange={v => handleToggle(setDarkMode, v, 'darkMode')}
               trackColor={{ false: '#e0e0e0', true: '#d67b32' }}
               thumbColor={darkMode ? '#fff' : '#f4f3f4'}
             />

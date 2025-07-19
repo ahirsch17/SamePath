@@ -12,252 +12,105 @@ import {
   Modal,
 } from 'react-native';
 import { Ionicons, FontAwesome } from '@expo/vector-icons';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { userDataService } from '../services/UserDataService';
-import { courseDataService, CourseInfo, CourseMatch } from '../services/CourseDataService';
-import { Modal as RNModal } from 'react-native';
-
-interface ScheduleScreenNavigationProp {
-  navigate: (screen: string) => void;
-  goBack: () => void;
-}
-
-interface ClassSchedule {
-  crn: string;
-  courseName: string;
-  time: string;
-  days: string;
-  location: string;
-  subject: string;
-  courseNumber: string;
-  credits: number;
-  instructor: string;
-  friendsInSameSection: string[];
-  friendsInOtherSections: string[];
-}
-
-interface ClubEvent {
-  id: string;
-  name: string;
-  time: string;
-  days: string;
-  location?: string;
-  type: 'club' | 'event';
-  description?: string;
-}
+import { useNavigation } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ApiService from '../services/ApiService';
 
 export default function ScheduleScreen() {
-  const navigation = useNavigation<ScheduleScreenNavigationProp>();
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [schedule, setSchedule] = useState<ClassSchedule[]>([]);
-  const [clubEvents, setClubEvents] = useState<ClubEvent[]>([]);
+  const navigation = useNavigation();
+  const [schedule, setSchedule] = useState<any[]>([]);
+  const [clubEvents, setClubEvents] = useState<any[]>([]); // TODO: Replace with real API data if available
+  const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedCourse, setSelectedCourse] = useState<ClassSchedule | null>(null);
+  const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [showFriendModal, setShowFriendModal] = useState(false);
 
   useEffect(() => {
-    loadUserSchedule();
+    const fetchSchedule = async () => {
+      setLoading(true);
+      const user_id = await AsyncStorage.getItem('user_id');
+      if (!user_id) {
+        Alert.alert('Error', 'User not logged in.');
+        setLoading(false);
+        return;
+      }
+      try {
+        const response = await ApiService.getSchedule(Number(user_id));
+        setSchedule(response.data.schedule || []);
+        // TODO: Fetch club/events from API if available
+      } catch (error) {
+        Alert.alert('Error', 'Failed to fetch schedule.');
+      }
+      setLoading(false);
+    };
+    fetchSchedule();
   }, []);
 
-  const loadUserSchedule = async () => {
-    const user = await userDataService.getCurrentUser();
-    if (user) {
-      setCurrentUser(user);
-      
-      // Get user's CRNs from the new in-memory mapping
-      const crns = userDataService.getUserCRNs(user.vtEmail);
-      
-      // Use efficient course data service (only checks matchlist, not all users)
-      const { courses, friendsInCourses } = await courseDataService.getUserCourseData(
-        user.vtEmail,
-        crns,
-        user.matchList || []
-      );
-      
-      // Convert to ClassSchedule format
-      const classSchedule: ClassSchedule[] = courses.map(course => {
-        const courseKey = `${course.subject}-${course.courseNumber}`;
-        const friendsInThisCourse = friendsInCourses.get(courseKey) || [];
-        
-        return {
-          crn: course.crn,
-          courseName: course.courseName,
-          time: course.time,
-          days: course.days,
-          location: course.location,
-          subject: course.subject,
-          courseNumber: course.courseNumber,
-          credits: course.credits,
-          instructor: course.instructor,
-          friendsInSameSection: friendsInThisCourse, // All friends in this course (same or different sections)
-          friendsInOtherSections: [] // We'll handle this differently if needed
-        };
-      });
-      
-      setSchedule(classSchedule);
-      
-      // Sample free time activities
-      // setFreeTime([
-      //   {
-      //     id: '1',
-      //     activity: 'Gym',
-      //     time: '2:00 PM - 3:30 PM',
-      //     days: 'M W F',
-      //     location: 'McComas Hall'
-      //   },
-      //   {
-      //     id: '2',
-      //     activity: 'Study',
-      //     time: '4:00 PM - 6:00 PM',
-      //     days: 'T TH',
-      //     location: 'Newman Library'
-      //   },
-      //   {
-      //     id: '3',
-      //     activity: 'Lunch',
-      //     time: '12:00 PM - 1:00 PM',
-      //     days: 'M T W TH F',
-      //     location: 'D2 Dining Hall'
-      //   }
-      // ]);
-    }
-  };
-
-  const addFreeTime = () => {
-    Alert.alert('Add Free Time', 'Free time management coming soon!');
-  };
-
-  const addClubEvent = () => {
-    setShowAddModal(true);
-  };
-
   const openCRNLookup = () => {
-    navigation.navigate('CRNLookup');
+    navigation.navigate('CRNLookup' as never);
   };
 
-  const showFriendSections = (course: ClassSchedule) => {
+  const showFriendSections = (course: any) => {
     setSelectedCourse(course);
     setShowFriendModal(true);
   };
 
-  const formatDays = (days: string): string => {
-    // Convert VT format to readable format
-    return days
-      .replace('TTh', 'T TH')
-      .replace('MWF', 'M W F')
-      .replace('MW', 'M W')
-      .replace('TTh', 'T TH')
-      .replace('TR', 'T R')
-      .replace('MTWThF', 'M T W TH F')
-      .replace('MTWTh', 'M T W TH')
-      .replace('TThF', 'T TH F')
-      .replace('MWTh', 'M W TH')
-      .replace('MTTh', 'M T TH')
-      .replace('WF', 'W F')
-      .replace('MF', 'M F')
-      .replace('TF', 'T F')
-      .replace('ThF', 'TH F')
-      .replace('MTh', 'M TH')
-      .replace('WTh', 'W TH');
-  };
-
-  const renderScheduleItem = (item: ClassSchedule | ClubEvent, type: 'class' | 'clubEvent') => (
-    <View key={type === 'class' ? (item as ClassSchedule).crn : (item as ClubEvent).id} style={styles.scheduleItem}>
+  const renderScheduleItem = (item: any) => (
+    <View key={item.crn || item.id} style={styles.scheduleItem}>
       <View style={styles.itemHeader}>
-        <View style={[styles.typeBadge, 
-          type === 'class' ? styles.classBadge : 
-          type === 'clubEvent' ? styles.clubBadge : styles.freeTimeBadge
-        ]}>
-          <Text style={styles.typeText}>
-            {type === 'class' ? 'CLASS' : type === 'clubEvent' ? 'CLUB' : 'FREE TIME'}
-          </Text>
+        <View style={[styles.typeBadge, styles.classBadge]}>
+          <Text style={styles.typeText}>CLASS</Text>
         </View>
-        {type === 'class' && (
-          <TouchableOpacity 
-            style={styles.friendButton}
-            onPress={() => showFriendSections(item as ClassSchedule)}
-          >
-            <Ionicons name="people" size={16} color="#007AFF" />
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity 
+          style={styles.friendButton}
+          onPress={() => showFriendSections(item)}
+        >
+          <Ionicons name="people" size={16} color="#007AFF" />
+        </TouchableOpacity>
       </View>
-      
-      <Text style={styles.itemTitle}>
-        {type === 'class' ? (item as ClassSchedule).courseName : 
-         (item as ClubEvent).name}
-      </Text>
-      
-      {type === 'class' && (
-        <Text style={styles.courseCode}>
-          {(item as ClassSchedule).subject} {(item as ClassSchedule).courseNumber} • {(item as ClassSchedule).credits} credits • CRN: {(item as ClassSchedule).crn}
-        </Text>
-      )}
-      
+      <Text style={styles.itemTitle}>{item.courseName || item.title}</Text>
+      <Text style={styles.courseCode}>{item.subject} {item.courseNumber} • {item.credits} credits • CRN: {item.crn}</Text>
       <View style={styles.itemDetails}>
         <View style={styles.detailRow}>
           <Ionicons name="time-outline" size={14} color="#666" />
           <Text style={styles.detailText}>{item.time}</Text>
         </View>
-        
         <View style={styles.detailRow}>
           <Ionicons name="calendar-outline" size={14} color="#666" />
-          <Text style={styles.detailText}>{formatDays(item.days)}</Text>
+          <Text style={styles.detailText}>{item.days}</Text>
         </View>
-        
         {item.location && (
           <View style={styles.detailRow}>
             <Ionicons name="location-outline" size={14} color="#666" />
             <Text style={styles.detailText}>{item.location}</Text>
           </View>
         )}
-        
-        {type === 'class' && (item as ClassSchedule).instructor && (
+        {item.instructor && (
           <View style={styles.detailRow}>
             <Ionicons name="person-outline" size={14} color="#666" />
-            <Text style={styles.detailText}>{(item as ClassSchedule).instructor}</Text>
+            <Text style={styles.detailText}>{item.instructor}</Text>
           </View>
         )}
       </View>
-      
-      {/* Friend matches for classes */}
-      {type === 'class' && ((item as ClassSchedule).friendsInSameSection.length > 0 || (item as ClassSchedule).friendsInOtherSections.length > 0) && (
-        <View style={styles.friendsSection}>
-          {(item as ClassSchedule).friendsInSameSection.length > 0 && (
-            <View style={styles.friendGroup}>
-              <Text style={styles.friendLabel}>Same Section:</Text>
-              <View style={styles.friendAvatars}>
-                {(item as ClassSchedule).friendsInSameSection.map((friend, index) => (
-                  <View key={index} style={styles.friendAvatar}>
-                    <Text style={styles.friendInitial}>{friend.charAt(0)}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-          
-          {(item as ClassSchedule).friendsInOtherSections.length > 0 && (
-            <View style={styles.friendGroup}>
-              <Text style={styles.friendLabel}>Other Sections:</Text>
-              <View style={styles.friendAvatars}>
-                {(item as ClassSchedule).friendsInOtherSections.map((friend, index) => (
-                  <View key={index} style={styles.friendAvatar}>
-                    <Text style={styles.friendInitial}>{friend.charAt(0)}</Text>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
-        </View>
-      )}
     </View>
   );
 
-  const renderContent = () => {
-    return (
-      <>
+  return (
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={{ width: 24 }} />
+        <Text style={styles.headerTitle}>Regularly Scheduled Events</Text>
+        <View style={{ width: 24 }} />
+      </View>
+
+      {/* Content */}
+      <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionTitle}>Classes</Text>
-        {schedule.length > 0 ? (
-          schedule.map(item => renderScheduleItem(item, 'class'))
+        {loading ? (
+          <Text>Loading...</Text>
+        ) : schedule.length > 0 ? (
+          schedule.map(item => renderScheduleItem(item))
         ) : (
           <View style={styles.emptyState}>
             <Ionicons name="school-outline" size={48} color="#ccc" />
@@ -267,7 +120,7 @@ export default function ScheduleScreen() {
 
         <Text style={styles.sectionTitle}>Clubs & Events</Text>
         {clubEvents.length > 0 ? (
-          clubEvents.map(item => renderScheduleItem(item, 'clubEvent'))
+          clubEvents.map(item => renderScheduleItem(item))
         ) : (
           <View style={styles.emptyState}>
             <Ionicons name="people-outline" size={48} color="#ccc" />
@@ -280,32 +133,7 @@ export default function ScheduleScreen() {
             <Ionicons name="search" size={24} color="#fff" />
             <Text style={styles.addButtonText}>Lookup Course by CRN</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.addButton, { backgroundColor: '#28a745' }]} onPress={addClubEvent}>
-            <Ionicons name="add" size={24} color="#fff" />
-            <Text style={styles.addButtonText}>Add Club/Event</Text>
-          </TouchableOpacity>
         </View>
-      </>
-    );
-  };
-
-  const getHeaderTitle = () => {
-    return 'Regularly Scheduled Events';
-  };
-
-  return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={{ width: 24 }} />
-        <Text style={styles.headerTitle}>{getHeaderTitle()}</Text>
-        <View style={{ width: 24 }} />
-      </View>
-
-      {/* Content */}
-      <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
-        {renderContent()}
       </ScrollView>
 
       {/* Friend Sections Modal */}
@@ -325,42 +153,12 @@ export default function ScheduleScreen() {
                 <Ionicons name="close" size={24} color="#666" />
               </TouchableOpacity>
             </View>
-            
             <ScrollView style={styles.modalBody}>
-              {selectedCourse && selectedCourse.friendsInSameSection.length > 0 && (
-                <View style={styles.modalSection}>
-                  <Text style={styles.modalSectionTitle}>Same Section (CRN: {selectedCourse.crn})</Text>
-                  {selectedCourse.friendsInSameSection.map((friend, index) => (
-                    <View key={index} style={styles.friendItem}>
-                      <View style={styles.friendAvatar}>
-                        <Text style={styles.friendInitial}>{friend.charAt(0)}</Text>
-                      </View>
-                      <Text style={styles.friendName}>{friend}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-              
-              {selectedCourse && selectedCourse.friendsInOtherSections.length > 0 && (
-                <View style={styles.modalSection}>
-                  <Text style={styles.modalSectionTitle}>Other Sections</Text>
-                  {selectedCourse.friendsInOtherSections.map((friend, index) => (
-                    <View key={index} style={styles.friendItem}>
-                      <View style={styles.friendAvatar}>
-                        <Text style={styles.friendInitial}>{friend.charAt(0)}</Text>
-                      </View>
-                      <Text style={styles.friendName}>{friend}</Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-              
-              {(!selectedCourse?.friendsInSameSection.length && !selectedCourse?.friendsInOtherSections.length) && (
-                <View style={styles.emptyModalState}>
-                  <Ionicons name="people-outline" size={48} color="#ccc" />
-                  <Text style={styles.emptyModalText}>No friends in this course</Text>
-                </View>
-              )}
+              {/* TODO: Populate with real friends data from API if available */}
+              <View style={styles.emptyModalState}>
+                <Ionicons name="people-outline" size={48} color="#ccc" />
+                <Text style={styles.emptyModalText}>No friends in this course</Text>
+              </View>
             </ScrollView>
           </View>
         </View>

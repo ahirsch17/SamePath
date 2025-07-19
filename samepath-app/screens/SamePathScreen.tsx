@@ -12,91 +12,57 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { userDataService } from '../services/UserDataService';
-import { courseDataService } from '../services/CourseDataService';
-
-interface SamePathScreenNavigationProp {
-  navigate: (screen: string) => void;
-  goBack: () => void;
-}
-
-interface ClassSchedule {
-  crn: string;
-  courseName: string;
-  time: string;
-  days: string;
-  location: string;
-  subject: string;
-  courseNumber: string;
-  credits: number;
-  instructor: string;
-  friendsInSameSection: string[];
-  friendsInOtherSections: string[];
-}
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ApiService from '../services/ApiService';
 
 export default function SamePathScreen() {
-  const navigation = useNavigation<SamePathScreenNavigationProp>();
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const [schedule, setSchedule] = useState<ClassSchedule[]>([]);
+  const navigation = useNavigation();
+  const [schedule, setSchedule] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadUserSchedule();
+    const fetchSchedule = async () => {
+      setLoading(true);
+      const user_id = await AsyncStorage.getItem('user_id');
+      if (!user_id) {
+        Alert.alert('Error', 'User not logged in.');
+        setLoading(false);
+        return;
+      }
+      try {
+        const response = await ApiService.getSchedule(Number(user_id));
+        setSchedule(response.data.schedule || []);
+      } catch (error) {
+        Alert.alert('Error', 'Failed to fetch schedule.');
+      }
+      setLoading(false);
+    };
+    fetchSchedule();
   }, []);
 
-  const loadUserSchedule = async () => {
-    const user = await userDataService.getCurrentUser();
-    if (user) {
-      setCurrentUser(user);
-      
-      // Get user's CRNs from the new in-memory mapping
-      const crns = userDataService.getUserCRNs(user.vtEmail);
-      
-      // Use efficient course data service (only checks matchlist, not all users)
-      const { courses, friendsInCourses } = await courseDataService.getUserCourseData(
-        user.vtEmail,
-        crns,
-        user.matchList || []
-      );
-      
-      // Convert to ClassSchedule format
-      const classSchedule: ClassSchedule[] = courses.map(course => {
-        const courseKey = `${course.subject}-${course.courseNumber}`;
-        const friendsInThisCourse = friendsInCourses.get(courseKey) || [];
-        
-        return {
-          crn: course.crn,
-          courseName: course.courseName,
-          time: course.time,
-          days: course.days,
-          location: course.location,
-          subject: course.subject,
-          courseNumber: course.courseNumber,
-          credits: course.credits,
-          instructor: course.instructor,
-          friendsInSameSection: friendsInThisCourse,
-          friendsInOtherSections: []
-        };
-      });
-      
-      setSchedule(classSchedule);
-    }
+  const getNextClass = () => {
+    if (!schedule.length) return null;
+    // Assume schedule is sorted by time, or sort if needed
+    // For demo, just return the first class
+    return schedule[0];
   };
+
+  const nextClass = getNextClass();
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View style={{ width: 24 }} />
         <View style={{ flex: 1 }} />
         <TouchableOpacity 
           style={styles.headerButton}
-          onPress={() => navigation.navigate('Network')}
+          onPress={() => navigation.navigate('Network' as never)}
         >
           <Ionicons name="people-outline" size={24} color="#666" />
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.headerButton}
-          onPress={() => navigation.navigate('Preferences')}
+          onPress={() => navigation.navigate('Preferences' as never)}
         >
           <Ionicons name="settings-outline" size={24} color="#666" />
         </TouchableOpacity>
@@ -106,49 +72,25 @@ export default function SamePathScreen() {
       <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
         <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 20 }}>
           <Image source={require('../assets/icon.png')} style={{ width: 100, height: 100, marginBottom: 20 }} />
-          
+
           {/* Next Class Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Next Class</Text>
-            {(() => {
-              const now = new Date();
-              const nextClass = schedule
-                .map(event => {
-                  const match = event.time.match(/(\d{1,2}):(\d{2})/);
-                  let startHour = 0;
-                  if (match) startHour = parseInt(match[1], 10);
-                  return { ...event, startHour };
-                })
-                .sort((a, b) => a.startHour - b.startHour)
-                .find(event => {
-                  const todayIdx = now.getDay();
-                  const dayMap: Record<number, string> = { 0: 'S', 1: 'M', 2: 'T', 3: 'W', 4: 'TH', 5: 'F', 6: 'SA' };
-                  const todayKey = dayMap[todayIdx];
-                  return todayKey && event.days.includes(todayKey) && event.startHour > now.getHours();
-                });
-
-              if (nextClass) {
-                return (
-                  <View style={styles.nextClassCard}>
-                    <Text style={styles.nextClassTitle}>{nextClass.courseName}</Text>
-                    <Text style={styles.nextClassTime}>{nextClass.time} • {nextClass.days}</Text>
-                    <Text style={styles.nextClassLocation}>{nextClass.location}</Text>
-                    {nextClass.friendsInSameSection.length > 0 && (
-                      <Text style={styles.friendsText}>
-                        Friends in class: {nextClass.friendsInSameSection.join(', ')}
-                      </Text>
-                    )}
-                  </View>
-                );
-              } else {
-                return (
-                  <View style={styles.noClassCard}>
-                    <Text style={styles.noClassText}>No more classes today!</Text>
-                    <Text style={styles.noClassSubtext}>You have free time! Explore campus or connect with friends.</Text>
-                  </View>
-                );
-              }
-            })()}
+            {loading ? (
+              <Text>Loading...</Text>
+            ) : nextClass ? (
+              <View style={styles.nextClassCard}>
+                <Text style={styles.nextClassTitle}>{nextClass.courseName || nextClass.title}</Text>
+                <Text style={styles.nextClassTime}>{nextClass.time} • {nextClass.days}</Text>
+                <Text style={styles.nextClassLocation}>{nextClass.location}</Text>
+                {/* Add friends in class if available */}
+              </View>
+            ) : (
+              <View style={styles.noClassCard}>
+                <Text style={styles.noClassText}>No more classes today!</Text>
+                <Text style={styles.noClassSubtext}>You have free time! Explore campus or connect with friends.</Text>
+              </View>
+            )}
           </View>
 
           {/* Suggested Activities */}
@@ -174,7 +116,7 @@ export default function SamePathScreen() {
             <View style={styles.actionButtons}>
               <TouchableOpacity 
                 style={styles.actionButton}
-                onPress={() => navigation.navigate('Schedule')}
+                onPress={() => navigation.navigate('Schedule' as never)}
               >
                 <Ionicons name="calendar-outline" size={24} color="#fff" />
                 <Text style={styles.actionButtonText}>View Schedule</Text>
@@ -182,7 +124,7 @@ export default function SamePathScreen() {
               
               <TouchableOpacity 
                 style={styles.actionButton}
-                onPress={() => navigation.navigate('FreeTime')}
+                onPress={() => navigation.navigate('FreeTime' as never)}
               >
                 <Ionicons name="time-outline" size={24} color="#fff" />
                 <Text style={styles.actionButtonText}>Free Time</Text>

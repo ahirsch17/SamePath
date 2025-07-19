@@ -12,28 +12,30 @@ import {
 } from 'react-native';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { userDataService } from '../services/UserDataService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ApiService from '../services/ApiService';
 
 export default function LoginScreen() {
   const navigation = useNavigation<NavigationProp<any>>();
   const logo = require('../assets/SamePathLogo.png');
 
-  const [vtEmail, setVtEmail] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const handleLogin = async () => {
-    if (!vtEmail.trim() || !password.trim()) {
-      Alert.alert('Please enter both VT email and password.');
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('Please enter both email and password.');
       return;
     }
-
     try {
-      const user = await userDataService.login(vtEmail.trim(), password);
-      if (user) {
-        // Navigate to main app, SamePath main page
+      const response = await ApiService.login(email.trim(), password);
+      if (response.data && response.data.success && response.data.user_id) {
+        // Store user_id in AsyncStorage
+        await AsyncStorage.setItem('user_id', String(response.data.user_id));
+        // TODO: Store user_id in context if needed
         navigation.reset({ index: 0, routes: [{ name: 'SamePath' }] });
       } else {
-        Alert.alert('Login failed', 'Incorrect VT email or password. Please try again or use the setup screen for new accounts.');
+        Alert.alert('Login failed', response.data?.message || 'Incorrect email or password.');
       }
     } catch (error) {
       Alert.alert('Error', 'Something went wrong. Please try again.');
@@ -54,15 +56,15 @@ export default function LoginScreen() {
 
       <Text style={styles.title}>Welcome Back</Text>
       <Text style={styles.subtitle}>
-        Enter your VT email and password to sign in to SamePath.
+        Enter your email and password to sign in to SamePath.
       </Text>
 
-      <Text style={styles.label}>VT Email</Text>
+      <Text style={styles.label}>Email</Text>
       <TextInput
         style={styles.input}
-        placeholder="e.g., alexishirsch"
-        value={vtEmail}
-        onChangeText={setVtEmail}
+        placeholder="e.g., alexishirsch@vt.edu"
+        value={email}
+        onChangeText={setEmail}
         autoCapitalize="none"
         autoCorrect={false}
       />
@@ -77,9 +79,9 @@ export default function LoginScreen() {
       />
 
       <TouchableOpacity
-        style={[styles.button, (!vtEmail.trim() || !password.trim()) && styles.disabledButton]}
+        style={[styles.button, (!email.trim() || !password.trim()) && styles.disabledButton]}
         onPress={handleLogin}
-        disabled={!vtEmail.trim() || !password.trim()}
+        disabled={!email.trim() || !password.trim()}
       >
         <Text style={styles.buttonText}>Sign In</Text>
       </TouchableOpacity>

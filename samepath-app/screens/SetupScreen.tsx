@@ -12,14 +12,17 @@ import {
 } from 'react-native';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { userDataService } from '../services/UserDataService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ApiService from '../services/ApiService';
 
 export default function SetupScreen() {
   const navigation = useNavigation<NavigationProp<any>>();
   const logo = require('../assets/SamePathLogo.png');
 
-  const [vtPid, setVtPid] = useState('');
-  const [vtCode, setVtCode] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [school, setSchool] = useState('');
   const [password, setPassword] = useState('');
   const [agreed, setAgreed] = useState(false);
 
@@ -27,19 +30,35 @@ export default function SetupScreen() {
     password.length >= 8 && /[A-Z]/.test(password) && /[^A-Za-z0-9]/.test(password);
 
   const isFormValid = () =>
-    vtPid.length > 0 && vtCode.length > 0 && isPasswordValid() && agreed;
+    firstName.length > 0 && lastName.length > 0 && email.length > 0 && school.length > 0 && isPasswordValid() && agreed;
 
   const handleSubmit = async () => {
     if (!isFormValid()) {
       return;
     }
-
-    // Activate user and set password
-    const user = await userDataService.activateUserWithCodeAndPid(vtPid, vtCode, password);
-    if (user) {
-      navigation.reset({ index: 0, routes: [{ name: 'SamePath' }] });
-    } else {
-      Alert.alert('Error activating account. Please check your PID and code, then try again.');
+    try {
+      const response = await ApiService.signup(firstName, lastName, email, password, school);
+      if (response.data && response.data.user_id) {
+        await AsyncStorage.setItem('user_id', String(response.data.user_id));
+        navigation.reset({ index: 0, routes: [{ name: 'SamePath' }] });
+      } else {
+        const message = response.data?.message || 'Please check your info and try again.';
+        Alert.alert('Signup failed', message);
+      }
+    } catch (error: any) {
+      let errorMessage = 'Something went wrong. Please try again.';
+      if (error.response && error.response.data) {
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else {
+          errorMessage = JSON.stringify(error.response.data);
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      Alert.alert('Error', errorMessage);
     }
   };
 
@@ -56,26 +75,44 @@ export default function SetupScreen() {
       <Image source={logo} style={styles.logo} resizeMode="contain" />
 
       <Text style={styles.subtext}>
-        Enter your VT PID (the part before @vt.edu), the code sent to your email, and choose a secure password.
+        Enter your info and choose a secure password.
       </Text>
 
-      <Text style={styles.label}>VT PID</Text>
+      <Text style={styles.label}>First Name</Text>
       <TextInput
         style={styles.input}
-        placeholder="e.g., alexishirsch"
-        value={vtPid}
-        onChangeText={setVtPid}
+        placeholder="e.g., Alexis"
+        value={firstName}
+        onChangeText={setFirstName}
+        autoCapitalize="words"
+      />
+
+      <Text style={styles.label}>Last Name</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="e.g., Hirsch"
+        value={lastName}
+        onChangeText={setLastName}
+        autoCapitalize="words"
+      />
+
+      <Text style={styles.label}>Email</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="e.g., alexishirsch@vt.edu"
+        value={email}
+        onChangeText={setEmail}
         autoCapitalize="none"
         autoCorrect={false}
       />
 
-      <Text style={styles.label}>Verification Code</Text>
+      <Text style={styles.label}>School</Text>
       <TextInput
         style={styles.input}
-        placeholder="e.g., 123456"
-        value={vtCode}
-        onChangeText={setVtCode}
-        keyboardType="number-pad"
+        placeholder="e.g., Virginia Tech"
+        value={school}
+        onChangeText={setSchool}
+        autoCapitalize="words"
       />
 
       <Text style={styles.label}>Choose a Password</Text>
@@ -98,7 +135,7 @@ export default function SetupScreen() {
           I agree to the{' '}
           <Text
             style={styles.termsLink}
-            onPress={() => navigation.navigate('Terms')}
+            onPress={() => navigation.navigate('Terms' as never)}
           >
             Terms of Use
           </Text>
@@ -107,11 +144,17 @@ export default function SetupScreen() {
 
       {/* Validation messages */}
       <View style={styles.validationContainer}>
-        {vtPid.length === 0 && (
-          <Text style={styles.validationText}>❌ Please enter your VT PID</Text>
+        {firstName.length === 0 && (
+          <Text style={styles.validationText}>❌ Please enter your first name</Text>
         )}
-        {vtCode.length === 0 && (
-          <Text style={styles.validationText}>❌ Please enter verification code</Text>
+        {lastName.length === 0 && (
+          <Text style={styles.validationText}>❌ Please enter your last name</Text>
+        )}
+        {email.length === 0 && (
+          <Text style={styles.validationText}>❌ Please enter your email</Text>
+        )}
+        {school.length === 0 && (
+          <Text style={styles.validationText}>❌ Please enter your school</Text>
         )}
         {password.length === 0 && (
           <Text style={styles.validationText}>❌ Please enter a password</Text>
@@ -131,7 +174,7 @@ export default function SetupScreen() {
         onPress={handleSubmit}
         disabled={!isFormValid()}
       >
-        <Text style={styles.buttonText}>Activate</Text>
+        <Text style={styles.buttonText}>Sign Up</Text>
       </TouchableOpacity>
     </View>
   );
@@ -196,18 +239,26 @@ const styles = StyleSheet.create({
   },
   agreeText: {
     fontSize: 14,
-    color: '#333',
+    color: '#555',
   },
   termsLink: {
     color: '#007aff',
     textDecorationLine: 'underline',
+  },
+  validationContainer: {
+    marginBottom: 10,
+  },
+  validationText: {
+    color: '#d67b32',
+    fontSize: 13,
+    marginBottom: 2,
   },
   button: {
     backgroundColor: '#d67b32',
     paddingVertical: 14,
     borderRadius: 6,
     alignItems: 'center',
-    marginBottom: 15,
+    marginTop: 20,
   },
   disabledButton: {
     backgroundColor: '#ccc',
@@ -216,14 +267,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 16,
-  },
-  validationContainer: {
-    marginBottom: 15,
-    paddingHorizontal: 5,
-  },
-  validationText: {
-    color: '#d32f2f',
-    fontSize: 12,
-    marginBottom: 5,
   },
 });
