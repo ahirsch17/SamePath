@@ -6,7 +6,7 @@ export const login = (email: string, password: string) =>
   axios.post(`${API_BASE}/login`, { email, password });
 
 export const signup = (first_name: string, last_name: string, email: string, password: string, school: string) =>
-  axios.post(`${API_BASE}/signup`, { first_name, last_name, email, password, school });
+  axios.post(`${API_BASE}/signup?first_name=${encodeURIComponent(first_name)}&last_name=${encodeURIComponent(last_name)}&email=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}&school=${encodeURIComponent(school)}`);
 
 export const getAvailableCourses = (user_id: number) =>
   axios.get(`${API_BASE}/available_courses`, {
