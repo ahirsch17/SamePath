@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Modal as RNModal, PanResponder, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Dimensions, Modal as RNModal, PanResponder, Alert, Platform, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ApiService from '../services/ApiService';
@@ -121,106 +121,145 @@ export default function FreeTimeScreen() {
   const intervals = getDailyIntervals(schedule);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      {/* Header */}
+    <View style={styles.container}>
+      {/* Modern Header */}
       <View style={styles.header}>
-        <View style={{ width: 24 }} />
-        <Text style={styles.headerTitle}>Free Time</Text>
-        <View style={{ width: 24 }} />
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Free Time Blocks</Text>
+          <Text style={styles.headerSubtitle}>Plan your activities around your schedule</Text>
+        </View>
       </View>
 
       {/* Content */}
       <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
         {loading ? (
-          <Text>Loading...</Text>
-        ) : DAYS.map((day, dayIdx) => (
-          <View key={day} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20 }}>
-            <Text style={{ width: 48, fontWeight: 'bold', fontSize: 13 }}>{day.slice(0, 3)}</Text>
-            <View
-              ref={el => { barRefs.current[dayIdx] = el; }}
-              style={{ flex: 1, height: 32, justifyContent: 'center', position: 'relative' }}
-              {...getBarPanResponder(dayIdx).panHandlers}
-            >
-              <View style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                height: 18,
-                backgroundColor: '#f3f3f3',
-                borderRadius: 12,
-                borderWidth: 1,
-                borderColor: '#e0e0e0',
-                top: 7,
-              }} />
-              {intervals[dayIdx].scheduled.map(([s, e], i) => {
-                const leftPct = ((s - START_MINUTES) / TOTAL_DAY_MINUTES) * 100;
-                const widthPct = ((e - s) / TOTAL_DAY_MINUTES) * 100;
-                return (
-                  <View
-                    key={`sched-${s}`}
-                    style={{
-                      position: 'absolute',
-                      left: `${leftPct}%`,
-                      width: `${widthPct}%`,
-                      height: 18,
-                      backgroundColor: '#d1d5db',
-                      borderRadius: 12,
-                      top: 7,
-                    }}
-                  />
-                );
-              })}
-              {intervals[dayIdx].free.map(([fStart, fEnd], i) => {
-                const leftPct = ((fStart - START_MINUTES) / TOTAL_DAY_MINUTES) * 100;
-                const widthPct = ((fEnd - fStart) / TOTAL_DAY_MINUTES) * 100;
-                return (
-                  <TouchableOpacity
-                    key={`free-${fStart}`}
-                    style={{
-                      position: 'absolute',
-                      left: `${leftPct}%`,
-                      width: `${widthPct}%`,
-                      height: 18,
-                      backgroundColor: '#FFA500',
-                      borderRadius: 12,
-                      top: 7,
-                      opacity: 0.92,
-                    }}
-                    activeOpacity={0.7}
-                    onPress={() => setActivityModal({ dayIdx, start: fStart, end: fEnd })}
-                  />
-                );
-              })}
-              <View style={{ position: 'absolute', left: 0, top: 28 }}>
-                <Text style={{ fontSize: 11, color: '#888' }}>6am</Text>
-              </View>
-              <View style={{ position: 'absolute', right: 0, top: 28 }}>
-                <Text style={{ fontSize: 11, color: '#888' }}>11pm</Text>
-              </View>
-              {tooltip && tooltip.dayIdx === dayIdx && (
-                <View style={{
-                  position: 'absolute',
-                  left: Math.max(0, Math.min(tooltip.x - 32, Dimensions.get('window').width - 120)),
-                  top: -28,
-                  backgroundColor: '#fff',
-                  borderRadius: 8,
-                  paddingHorizontal: 10,
-                  paddingVertical: 4,
-                  borderWidth: 1,
-                  borderColor: '#FFA500',
-                  shadowColor: '#000',
-                  shadowOpacity: 0.08,
-                  shadowRadius: 2,
-                  shadowOffset: { width: 0, height: 1 },
-                  zIndex: 10,
-                }}>
-                  <Text style={{ color: '#d67b32', fontWeight: 'bold', fontSize: 13 }}>{tooltip.time}</Text>
-                </View>
-              )}
+          <View style={styles.loadingContainer}>
+            <View style={styles.loadingCard}>
+              <Ionicons name="refresh" size={32} color="#6366f1" />
+              <Text style={styles.loadingText}>Loading your schedule...</Text>
             </View>
           </View>
-        ))}
+        ) : (
+          <>
+            {/* Summary Card */}
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryHeader}>
+                <Ionicons name="time" size={24} color="#6366f1" />
+                <Text style={styles.summaryTitle}>This Week's Free Time</Text>
+              </View>
+              <View style={styles.summaryStats}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>
+                    {DAYS.reduce((total, day, idx) => total + intervals[idx].free.length, 0)}
+                  </Text>
+                  <Text style={styles.statLabel}>Free Blocks</Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={styles.statNumber}>
+                    {Math.round(DAYS.reduce((total, day, idx) => 
+                      total + intervals[idx].free.reduce((sum, [start, end]) => sum + (end - start), 0), 0) / 60)}
+                  </Text>
+                  <Text style={styles.statLabel}>Total Hours</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Daily Schedule */}
+            {DAYS.map((day, dayIdx) => (
+              <View key={day} style={styles.dayCard}>
+                <View style={styles.dayHeader}>
+                  <Text style={styles.dayName}>{day}</Text>
+                  <Text style={styles.dayStats}>
+                    {intervals[dayIdx].free.length} free blocks
+                  </Text>
+                </View>
+                
+                <View style={styles.timelineContainer}>
+                  <View
+                    ref={el => { barRefs.current[dayIdx] = el; }}
+                    style={styles.timelineBar}
+                    {...getBarPanResponder(dayIdx).panHandlers}
+                  >
+                    {/* Background track */}
+                    <View style={styles.timelineTrack} />
+                    
+                    {/* Scheduled blocks */}
+                    {intervals[dayIdx].scheduled.map(([s, e], i) => {
+                      const leftPct = ((s - START_MINUTES) / TOTAL_DAY_MINUTES) * 100;
+                      const widthPct = ((e - s) / TOTAL_DAY_MINUTES) * 100;
+                      return (
+                        <View
+                          key={`sched-${s}`}
+                          style={[styles.scheduledBlock, {
+                            left: `${leftPct}%`,
+                            width: `${widthPct}%`,
+                          }]}
+                        />
+                      );
+                    })}
+                    
+                    {/* Free time blocks */}
+                    {intervals[dayIdx].free.map(([fStart, fEnd], i) => {
+                      const leftPct = ((fStart - START_MINUTES) / TOTAL_DAY_MINUTES) * 100;
+                      const widthPct = ((fEnd - fStart) / TOTAL_DAY_MINUTES) * 100;
+                      return (
+                        <TouchableOpacity
+                          key={`free-${fStart}`}
+                          style={[styles.freeBlock, {
+                            left: `${leftPct}%`,
+                            width: `${widthPct}%`,
+                          }]}
+                          activeOpacity={0.8}
+                          onPress={() => setActivityModal({ dayIdx, start: fStart, end: fEnd })}
+                        />
+                      );
+                    })}
+                    
+                    {/* Time markers */}
+                    <View style={styles.timeMarker}>
+                      <Text style={styles.timeLabel}>6am</Text>
+                    </View>
+                    <View style={[styles.timeMarker, { right: 0, left: 'auto' }]}>
+                      <Text style={styles.timeLabel}>11pm</Text>
+                    </View>
+                    
+                    {/* Tooltip */}
+                    {tooltip && tooltip.dayIdx === dayIdx && (
+                      <View style={[styles.tooltip, {
+                        left: Math.max(0, Math.min(tooltip.x - 32, Dimensions.get('window').width - 120)),
+                      }]}>
+                        <Text style={styles.tooltipText}>{tooltip.time}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+                
+                {/* Free time details */}
+                {intervals[dayIdx].free.length > 0 && (
+                  <View style={styles.freeTimeDetails}>
+                    <Text style={styles.detailsTitle}>Available Times:</Text>
+                    {intervals[dayIdx].free.map(([start, end], i) => (
+                      <TouchableOpacity
+                        key={i}
+                        style={styles.timeSlot}
+                        onPress={() => setActivityModal({ dayIdx, start, end })}
+                      >
+                        <Text style={styles.timeSlotText}>
+                          {`${Math.floor(start / 60)}:${(start % 60).toString().padStart(2, '0')} - ${Math.floor(end / 60)}:${(end % 60).toString().padStart(2, '0')}`}
+                        </Text>
+                        <Ionicons name="add-circle" size={20} color="#6366f1" />
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+            ))}
+          </>
+        )}
       </ScrollView>
+
+      {/* Activity Modal */}
       {activityModal && (
         <RNModal
           visible={!!activityModal}
@@ -228,34 +267,31 @@ export default function FreeTimeScreen() {
           animationType="slide"
           onRequestClose={() => setActivityModal(null)}
         >
-          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', alignItems: 'center' }}>
-            <View style={{ backgroundColor: '#fff', borderRadius: 16, padding: 24, width: 320, alignItems: 'center' }}>
-              <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 12 }}>
-                Set Activities for {DAYS[activityModal.dayIdx]} {`${Math.floor(activityModal.start / 60)}:${(activityModal.start % 60).toString().padStart(2, '0')}`}–{`${Math.floor(activityModal.end / 60)}:${(activityModal.end % 60).toString().padStart(2, '0')}`}
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>
+                Set Activities for {DAYS[activityModal.dayIdx]}
               </Text>
-              {ACTIVITIES.map(activity => (
-                <TouchableOpacity
-                  key={activity}
-                  style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}
-                  onPress={() => setActivityModal(null)}
-                >
-                  <View style={{
-                    width: 20,
-                    height: 20,
-                    borderRadius: 4,
-                    borderWidth: 1,
-                    borderColor: '#d67b32',
-                    backgroundColor: '#fff',
-                    marginRight: 8,
-                  }} />
-                  <Text>{activity}</Text>
-                </TouchableOpacity>
-              ))}
+              <Text style={styles.modalTime}>
+                {`${Math.floor(activityModal.start / 60)}:${(activityModal.start % 60).toString().padStart(2, '0')} - ${Math.floor(activityModal.end / 60)}:${(activityModal.end % 60).toString().padStart(2, '0')}`}
+              </Text>
+              <View style={styles.activityList}>
+                {ACTIVITIES.map(activity => (
+                  <TouchableOpacity
+                    key={activity}
+                    style={styles.activityOption}
+                    onPress={() => setActivityModal(null)}
+                  >
+                    <View style={styles.activityCheckbox} />
+                    <Text style={styles.activityOptionText}>{activity}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
               <TouchableOpacity
-                style={{ marginTop: 16, backgroundColor: '#d67b32', borderRadius: 6, padding: 10, alignItems: 'center', width: 120 }}
+                style={styles.modalButton}
                 onPress={() => setActivityModal(null)}
               >
-                <Text style={{ color: '#fff', fontWeight: 'bold' }}>Done</Text>
+                <Text style={styles.modalButtonText}>Done</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -266,23 +302,268 @@ export default function FreeTimeScreen() {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fafc',
+  },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 16,
     backgroundColor: '#fff',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 60,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: '#e5e7eb',
+  },
+  headerContent: {
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#d67b32',
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: '#64748b',
   },
   contentContainer: {
     flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#64748b',
+    marginTop: 12,
+  },
+  summaryCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  summaryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  summaryTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginLeft: 8,
+  },
+  summaryStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#6366f1',
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#64748b',
+  },
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: '#e5e7eb',
+    marginHorizontal: 20,
+  },
+  dayCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  dayHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  dayName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  dayStats: {
+    fontSize: 12,
+    color: '#64748b',
+  },
+  timelineContainer: {
+    marginBottom: 16,
+  },
+  timelineBar: {
+    height: 40,
+    position: 'relative',
+  },
+  timelineTrack: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 24,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 12,
+    top: 8,
+  },
+  scheduledBlock: {
+    position: 'absolute',
+    height: 24,
+    backgroundColor: '#94a3b8',
+    borderRadius: 12,
+    top: 8,
+  },
+  freeBlock: {
+    position: 'absolute',
+    height: 24,
+    backgroundColor: '#f59e0b',
+    borderRadius: 12,
+    top: 8,
+  },
+  timeMarker: {
+    position: 'absolute',
+    top: 36,
+  },
+  timeLabel: {
+    fontSize: 10,
+    color: '#64748b',
+  },
+  tooltip: {
+    position: 'absolute',
+    top: -32,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#f59e0b',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    zIndex: 10,
+  },
+  tooltipText: {
+    color: '#f59e0b',
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  freeTimeDetails: {
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    paddingTop: 16,
+  },
+  detailsTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 12,
+  },
+  timeSlot: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  timeSlotText: {
+    fontSize: 14,
+    color: '#1e293b',
+    fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
     padding: 24,
+    width: 320,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 8,
+  },
+  modalTime: {
+    fontSize: 14,
+    color: '#64748b',
+    marginBottom: 20,
+  },
+  activityList: {
+    width: '100%',
+    marginBottom: 20,
+  },
+  activityOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  activityCheckbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#6366f1',
+    backgroundColor: '#fff',
+    marginRight: 12,
+  },
+  activityOptionText: {
+    fontSize: 16,
+    color: '#1e293b',
+  },
+  modalButton: {
+    backgroundColor: '#6366f1',
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
   },
 }); 

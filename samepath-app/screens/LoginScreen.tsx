@@ -29,16 +29,41 @@ export default function LoginScreen() {
     }
     try {
       const response = await ApiService.login(email.trim(), password);
-      if (response.data && response.data.success && response.data.user_id) {
-        // Store user_id in AsyncStorage
-        await AsyncStorage.setItem('user_id', String(response.data.user_id));
-        // TODO: Store user_id in context if needed
+      console.log('Login response:', JSON.stringify(response.data, null, 2));
+      console.log('Response status:', response.status);
+      
+      // Check if login was successful based on the new API response format
+      if (response.data && response.data.success) {
+        // Store both user_id and email
+        if (response.data.user_id) {
+          await AsyncStorage.setItem('user_id', String(response.data.user_id));
+          console.log('Login successful, stored user_id:', response.data.user_id);
+        }
+        await AsyncStorage.setItem('user_email', email.trim());
+        console.log('Login successful, stored email:', email.trim());
         navigation.reset({ index: 0, routes: [{ name: 'SamePath' }] });
       } else {
-        Alert.alert('Login failed', response.data?.message || 'Incorrect email or password.');
+        // Handle login failure
+        const errorMessage = response.data?.error || 'Incorrect email or password.';
+        Alert.alert('Login failed', errorMessage);
       }
-    } catch (error) {
-      Alert.alert('Error', 'Something went wrong. Please try again.');
+    } catch (error: any) {
+      console.log('Login error:', error);
+      let errorMessage = 'Something went wrong. Please try again.';
+      if (error.response && error.response.data) {
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else {
+          errorMessage = JSON.stringify(error.response.data);
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      Alert.alert('Error', errorMessage);
     }
   };
 

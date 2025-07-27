@@ -30,8 +30,16 @@ export default function NetworkScreen() {
       }
       try {
         const response = await ApiService.getAvailableCourses(Number(user_id));
-        setClassGroups(response.data.courses || []);
+        // Handle the new API response format
+        if (response.data && Array.isArray(response.data)) {
+          setClassGroups(response.data);
+        } else if (response.data && response.data.courses) {
+          setClassGroups(response.data.courses);
+        } else {
+          setClassGroups([]);
+        }
       } catch (error) {
+        console.log('Error fetching class groups:', error);
         Alert.alert('Error', 'Failed to fetch class groups.');
       }
       setLoading(false);
@@ -64,11 +72,15 @@ export default function NetworkScreen() {
         {loading ? (
           <Text>Loading...</Text>
         ) : classGroups.map((group) => (
-          <View key={group.crn} style={styles.groupCard}>
+          <View key={group.crn || group.CRN} style={styles.groupCard}>
             <View style={styles.groupInfo}>
-              <Text style={styles.courseCode}>{group.subject} {group.courseNumber}</Text>
-              <Text style={styles.courseName}>{group.courseName}</Text>
-              <Text style={styles.crnText}>CRN: {group.crn}</Text>
+              <Text style={styles.courseCode}>
+                {group.subject || group.department} {group.courseNumber || group.number}
+              </Text>
+              <Text style={styles.courseName}>
+                {group.courseName || group.name || 'Course'}
+              </Text>
+              <Text style={styles.crnText}>CRN: {group.crn || group.CRN}</Text>
               <View style={styles.memberInfo}>
                 <Ionicons name="people-outline" size={16} color="#666" />
                 <Text style={styles.memberCount}>{group.memberCount || 0} members</Text>
@@ -76,7 +88,7 @@ export default function NetworkScreen() {
             </View>
             <TouchableOpacity
               style={styles.joinButton}
-              onPress={() => toggleGroupMembership(group.crn)}
+              onPress={() => toggleGroupMembership(group.crn || group.CRN)}
             >
               <Text style={styles.joinButtonText}>Join</Text>
             </TouchableOpacity>

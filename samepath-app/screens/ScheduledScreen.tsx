@@ -36,9 +36,17 @@ export default function ScheduleScreen() {
       }
       try {
         const response = await ApiService.getSchedule(Number(user_id));
-        setSchedule(response.data.schedule || []);
+        // Handle the new API response format
+        if (response.data && response.data.schedule) {
+          setSchedule(response.data.schedule || []);
+        } else if (response.data && Array.isArray(response.data)) {
+          setSchedule(response.data);
+        } else {
+          setSchedule([]);
+        }
         // TODO: Fetch club/events from API if available
       } catch (error) {
+        console.log('Error fetching schedule:', error);
         Alert.alert('Error', 'Failed to fetch schedule.');
       }
       setLoading(false);
@@ -56,7 +64,7 @@ export default function ScheduleScreen() {
   };
 
   const renderScheduleItem = (item: any) => (
-    <View key={item.crn || item.id} style={styles.scheduleItem}>
+    <View key={item.crn || item.CRN || item.id} style={styles.scheduleItem}>
       <View style={styles.itemHeader}>
         <View style={[styles.typeBadge, styles.classBadge]}>
           <Text style={styles.typeText}>CLASS</Text>
@@ -68,21 +76,25 @@ export default function ScheduleScreen() {
           <Ionicons name="people" size={16} color="#007AFF" />
         </TouchableOpacity>
       </View>
-      <Text style={styles.itemTitle}>{item.courseName || item.title}</Text>
-      <Text style={styles.courseCode}>{item.subject} {item.courseNumber} • {item.credits} credits • CRN: {item.crn}</Text>
+      <Text style={styles.itemTitle}>
+        {item.courseName || item.name || item.title || 'Course'}
+      </Text>
+      <Text style={styles.courseCode}>
+        {item.subject || item.department} {item.courseNumber || item.number} • {item.credits || 'N/A'} credits • CRN: {item.crn || item.CRN}
+      </Text>
       <View style={styles.itemDetails}>
         <View style={styles.detailRow}>
           <Ionicons name="time-outline" size={14} color="#666" />
-          <Text style={styles.detailText}>{item.time}</Text>
+          <Text style={styles.detailText}>{item.time || 'TBD'}</Text>
         </View>
         <View style={styles.detailRow}>
           <Ionicons name="calendar-outline" size={14} color="#666" />
-          <Text style={styles.detailText}>{item.days}</Text>
+          <Text style={styles.detailText}>{item.days || item.day || 'TBD'}</Text>
         </View>
-        {item.location && (
+        {(item.location || item.room) && (
           <View style={styles.detailRow}>
             <Ionicons name="location-outline" size={14} color="#666" />
-            <Text style={styles.detailText}>{item.location}</Text>
+            <Text style={styles.detailText}>{item.location || item.room}</Text>
           </View>
         )}
         {item.instructor && (
@@ -146,9 +158,9 @@ export default function ScheduleScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>
-                {selectedCourse?.subject} {selectedCourse?.courseNumber} - Friends
-              </Text>
+                          <Text style={styles.modalTitle}>
+              {selectedCourse?.subject || selectedCourse?.department} {selectedCourse?.courseNumber || selectedCourse?.number} - Friends
+            </Text>
               <TouchableOpacity onPress={() => setShowFriendModal(false)}>
                 <Ionicons name="close" size={24} color="#666" />
               </TouchableOpacity>

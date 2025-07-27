@@ -23,16 +23,39 @@ export default function SamePathScreen() {
   useEffect(() => {
     const fetchSchedule = async () => {
       setLoading(true);
-      const user_id = await AsyncStorage.getItem('user_id');
+      let user_id = await AsyncStorage.getItem('user_id');
+      
+      // If no user_id, try using email instead
       if (!user_id) {
-        Alert.alert('Error', 'User not logged in.');
+        const user_email = await AsyncStorage.getItem('user_email');
+        if (user_email) {
+          console.log('User logged in with email:', user_email);
+          try {
+            const response = await ApiService.getScheduleByEmail(user_email);
+            setSchedule(response.data.schedule || []);
+          } catch (error) {
+            console.log('Failed to get schedule with email:', error);
+            Alert.alert('Info', 'Login successful! However, the app needs user_id to function properly. Please contact support to add user_id to login response.');
+          }
+        } else {
+          Alert.alert('Error', 'User not logged in.');
+        }
         setLoading(false);
         return;
       }
+      
       try {
         const response = await ApiService.getSchedule(Number(user_id));
-        setSchedule(response.data.schedule || []);
+        // Handle the new API response format
+        if (response.data && response.data.schedule) {
+          setSchedule(response.data.schedule || []);
+        } else if (response.data && Array.isArray(response.data)) {
+          setSchedule(response.data);
+        } else {
+          setSchedule([]);
+        }
       } catch (error) {
+        console.log('Error fetching schedule:', error);
         Alert.alert('Error', 'Failed to fetch schedule.');
       }
       setLoading(false);
@@ -51,85 +74,173 @@ export default function SamePathScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Modern Header with Gradient */}
       <View style={styles.header}>
-        <View style={{ flex: 1 }} />
-        <TouchableOpacity 
-          style={styles.headerButton}
-          onPress={() => navigation.navigate('Network' as never)}
-        >
-          <Ionicons name="people-outline" size={24} color="#666" />
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.headerButton}
-          onPress={() => navigation.navigate('Preferences' as never)}
-        >
-          <Ionicons name="settings-outline" size={24} color="#666" />
-        </TouchableOpacity>
+        <View style={styles.headerContent}>
+          <View style={styles.logoContainer}>
+            <Image source={require('../assets/SamePathLogo.png')} style={styles.logo} resizeMode="contain" />
+          </View>
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={() => navigation.navigate('Network' as never)}
+            >
+              <Ionicons name="people" size={24} color="#fff" />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={() => navigation.navigate('Preferences' as never)}
+            >
+              <Ionicons name="settings" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
       </View>
 
       {/* Content */}
       <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
-        <View style={{ alignItems: 'center', justifyContent: 'center', paddingTop: 20 }}>
-          <Image source={require('../assets/icon.png')} style={{ width: 100, height: 100, marginBottom: 20 }} />
+        {/* Welcome Section */}
+        <View style={styles.welcomeSection}>
+          <Text style={styles.welcomeText}>Welcome back!</Text>
+          <Text style={styles.welcomeSubtext}>Ready to make the most of your day?</Text>
+        </View>
 
-          {/* Next Class Section */}
-          <View style={styles.section}>
+        {/* Next Class Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="time" size={20} color="#6366f1" />
             <Text style={styles.sectionTitle}>Next Class</Text>
-            {loading ? (
-              <Text>Loading...</Text>
-            ) : nextClass ? (
-              <View style={styles.nextClassCard}>
-                <Text style={styles.nextClassTitle}>{nextClass.courseName || nextClass.title}</Text>
-                <Text style={styles.nextClassTime}>{nextClass.time} • {nextClass.days}</Text>
-                <Text style={styles.nextClassLocation}>{nextClass.location}</Text>
-                {/* Add friends in class if available */}
-              </View>
-            ) : (
-              <View style={styles.noClassCard}>
-                <Text style={styles.noClassText}>No more classes today!</Text>
-                <Text style={styles.noClassSubtext}>You have free time! Explore campus or connect with friends.</Text>
-              </View>
-            )}
           </View>
+          {loading ? (
+            <View style={styles.loadingCard}>
+              <Ionicons name="refresh" size={24} color="#6366f1" />
+              <Text style={styles.loadingText}>Loading your schedule...</Text>
+            </View>
+          ) : nextClass ? (
+            <View style={styles.nextClassCard}>
+              <View style={styles.classHeader}>
+                <View style={styles.classIcon}>
+                  <Ionicons name="school" size={20} color="#fff" />
+                </View>
+                <View style={styles.classInfo}>
+                  <Text style={styles.nextClassTitle}>
+                    {nextClass.courseName || nextClass.name || nextClass.title || 'Course'}
+                  </Text>
+                  <Text style={styles.nextClassTime}>
+                    {nextClass.time} • {nextClass.days || nextClass.day || 'TBD'}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.classLocation}>
+                <Ionicons name="location" size={16} color="#6366f1" />
+                <Text style={styles.nextClassLocation}>
+                  {nextClass.location || nextClass.room || 'Location TBD'}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View style={styles.noClassCard}>
+              <View style={styles.noClassIcon}>
+                <Ionicons name="checkmark-circle" size={48} color="#10b981" />
+              </View>
+              <Text style={styles.noClassText}>No more classes today!</Text>
+              <Text style={styles.noClassSubtext}>You have free time! Explore campus or connect with friends.</Text>
+            </View>
+          )}
+        </View>
 
-          {/* Suggested Activities */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Suggested Activities</Text>
-            <View style={styles.activityCard}>
-              <Ionicons name="fitness-outline" size={24} color="#d67b32" />
-              <Text style={styles.activityText}>Hit the gym at McComas Hall</Text>
-            </View>
-            <View style={styles.activityCard}>
-              <Ionicons name="library-outline" size={24} color="#d67b32" />
-              <Text style={styles.activityText}>Study at Newman Library</Text>
-            </View>
-            <View style={styles.activityCard}>
-              <Ionicons name="restaurant-outline" size={24} color="#d67b32" />
-              <Text style={styles.activityText}>Grab lunch at D2 Dining Hall</Text>
-            </View>
-          </View>
-
-          {/* Quick Actions */}
-          <View style={styles.section}>
+        {/* Quick Actions Grid */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="grid" size={20} color="#6366f1" />
             <Text style={styles.sectionTitle}>Quick Actions</Text>
-            <View style={styles.actionButtons}>
-              <TouchableOpacity 
-                style={styles.actionButton}
-                onPress={() => navigation.navigate('Schedule' as never)}
-              >
-                <Ionicons name="calendar-outline" size={24} color="#fff" />
-                <Text style={styles.actionButtonText}>View Schedule</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={styles.actionButton}
-                onPress={() => navigation.navigate('FreeTime' as never)}
-              >
-                <Ionicons name="time-outline" size={24} color="#fff" />
-                <Text style={styles.actionButtonText}>Free Time</Text>
-              </TouchableOpacity>
-            </View>
+          </View>
+          <View style={styles.actionGrid}>
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('Schedule' as never)}
+            >
+              <View style={styles.actionIcon}>
+                <Ionicons name="calendar" size={28} color="#6366f1" />
+              </View>
+              <Text style={styles.actionTitle}>Schedule</Text>
+              <Text style={styles.actionSubtitle}>View your classes</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('FreeTime' as never)}
+            >
+              <View style={styles.actionIcon}>
+                <Ionicons name="time" size={28} color="#f59e0b" />
+              </View>
+              <Text style={styles.actionTitle}>Free Time</Text>
+              <Text style={styles.actionSubtitle}>Find activities</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('CRNLookup' as never)}
+            >
+              <View style={styles.actionIcon}>
+                <Ionicons name="search" size={28} color="#ef4444" />
+              </View>
+              <Text style={styles.actionTitle}>Course Lookup</Text>
+              <Text style={styles.actionSubtitle}>Find classes</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.actionCard}
+              onPress={() => navigation.navigate('Network' as never)}
+            >
+              <View style={styles.actionIcon}>
+                <Ionicons name="people" size={28} color="#8b5cf6" />
+              </View>
+              <Text style={styles.actionTitle}>Network</Text>
+              <Text style={styles.actionSubtitle}>Connect with friends</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Suggested Activities */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="bulb" size={20} color="#6366f1" />
+            <Text style={styles.sectionTitle}>Suggested Activities</Text>
+          </View>
+          <View style={styles.activityList}>
+            <TouchableOpacity style={styles.activityCard}>
+              <View style={styles.activityIcon}>
+                <Ionicons name="fitness" size={20} color="#fff" />
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityTitle}>Hit the gym</Text>
+                <Text style={styles.activityLocation}>McComas Hall</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.activityCard}>
+              <View style={styles.activityIcon}>
+                <Ionicons name="library" size={20} color="#fff" />
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityTitle}>Study session</Text>
+                <Text style={styles.activityLocation}>Newman Library</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+            </TouchableOpacity>
+            
+            <TouchableOpacity style={styles.activityCard}>
+              <View style={styles.activityIcon}>
+                <Ionicons name="restaurant" size={20} color="#fff" />
+              </View>
+              <View style={styles.activityContent}>
+                <Text style={styles.activityTitle}>Grab lunch</Text>
+                <Text style={styles.activityLocation}>D2 Dining Hall</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -140,111 +251,230 @@ export default function SamePathScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 60,
-    backgroundColor: '#fff',
+    backgroundColor: '#f8fafc',
   },
   header: {
+    backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 60,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
+  },
+  headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginBottom: 20,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#222',
+  logoContainer: {
+    flex: 1,
+  },
+  logo: {
+    width: 120,
+    height: 40,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   headerButton: {
     padding: 8,
+    marginLeft: 8,
   },
   contentContainer: {
     flex: 1,
     paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  welcomeSection: {
+    marginBottom: 30,
+    alignItems: 'center',
+  },
+  welcomeText: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#1e293b',
+    marginBottom: 8,
+  },
+  welcomeSubtext: {
+    fontSize: 16,
+    color: '#64748b',
+    textAlign: 'center',
   },
   section: {
     marginBottom: 30,
-    width: '100%',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
-    color: '#222',
-    marginBottom: 15,
+    color: '#1e293b',
+    marginLeft: 8,
+  },
+  loadingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#64748b',
+    marginTop: 8,
   },
   nextClassCard: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#fff',
     borderRadius: 16,
     padding: 20,
-    borderLeftWidth: 4,
-    borderLeftColor: '#d67b32',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  classHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  classIcon: {
+    backgroundColor: '#6366f1',
+    borderRadius: 12,
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  classInfo: {
+    flex: 1,
   },
   nextClassTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#222',
-    marginBottom: 8,
+    color: '#1e293b',
+    marginBottom: 4,
   },
   nextClassTime: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
+    color: '#64748b',
+  },
+  classLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   nextClassLocation: {
     fontSize: 14,
-    color: '#666',
-    marginBottom: 8,
-  },
-  friendsText: {
-    fontSize: 12,
-    color: '#d67b32',
-    fontStyle: 'italic',
+    color: '#6366f1',
+    marginLeft: 4,
+    fontWeight: '500',
   },
   noClassCard: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#fff',
     borderRadius: 16,
-    padding: 20,
+    padding: 24,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  noClassIcon: {
+    marginBottom: 12,
   },
   noClassText: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
-    color: '#222',
+    color: '#1e293b',
     marginBottom: 8,
   },
   noClassSubtext: {
     fontSize: 14,
-    color: '#666',
+    color: '#64748b',
     textAlign: 'center',
+    lineHeight: 20,
+  },
+  actionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  actionCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    width: '48%',
+    alignItems: 'center',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  actionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  actionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 4,
+  },
+  actionSubtitle: {
+    fontSize: 12,
+    color: '#64748b',
+    textAlign: 'center',
+  },
+  activityList: {
+    gap: 12,
   },
   activityCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
+    backgroundColor: '#fff',
+    borderRadius: 16,
     padding: 16,
-    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  activityText: {
-    fontSize: 14,
-    color: '#222',
-    marginLeft: 12,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  actionButton: {
-    flex: 1,
-    backgroundColor: '#d67b32',
+  activityIcon: {
+    width: 40,
+    height: 40,
     borderRadius: 12,
-    padding: 16,
+    backgroundColor: '#6366f1',
     alignItems: 'center',
-    marginHorizontal: 4,
+    justifyContent: 'center',
+    marginRight: 12,
   },
-  actionButtonText: {
-    color: '#fff',
+  activityContent: {
+    flex: 1,
+  },
+  activityTitle: {
+    fontSize: 16,
     fontWeight: '600',
-    marginTop: 8,
+    color: '#1e293b',
+    marginBottom: 2,
+  },
+  activityLocation: {
+    fontSize: 14,
+    color: '#64748b',
   },
 }); 

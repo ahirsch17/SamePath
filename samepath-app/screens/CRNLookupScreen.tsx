@@ -20,8 +20,16 @@ export default function CRNLookupScreen() {
       }
       try {
         const response = await ApiService.getAvailableCourses(Number(user_id));
-        setCourses(response.data.courses || []);
+        // Handle the new API response format
+        if (response.data && Array.isArray(response.data)) {
+          setCourses(response.data);
+        } else if (response.data && response.data.courses) {
+          setCourses(response.data.courses);
+        } else {
+          setCourses([]);
+        }
       } catch (error) {
+        console.log('Error fetching courses:', error);
         Alert.alert('Error', 'Failed to fetch courses.');
       }
       setLoading(false);
@@ -29,15 +37,41 @@ export default function CRNLookupScreen() {
     fetchCourses();
   }, []);
 
-  const filteredCourses = courses.filter(course =>
-    course.crn.includes(search) ||
-    course.courseName?.toLowerCase().includes(search.toLowerCase()) ||
-    course.subject?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredCourses = courses.filter(course => {
+    const searchLower = search.toLowerCase();
+    return (
+      String(course.crn || course.CRN).includes(search) ||
+      (course.courseName || course.name || '').toLowerCase().includes(searchLower) ||
+      (course.subject || course.department || '').toLowerCase().includes(searchLower) ||
+      (course.number || '').toString().includes(search)
+    );
+  });
 
-  const handleRegister = async (crn: string) => {
-    // TODO: Call ApiService.registerCourses to register this CRN for the user
-    Alert.alert('Register', `Register for CRN ${crn} (API integration coming soon)`);
+  const handleRegister = async (crn: string | number) => {
+    const user_id = await AsyncStorage.getItem('user_id');
+    if (!user_id) {
+      Alert.alert('Error', 'User not logged in.');
+      return;
+    }
+
+    try {
+      const response = await ApiService.registerCourses(Number(user_id), [Number(crn)]);
+      console.log('Registration response:', response.data);
+      Alert.alert('Success', `Successfully registered for CRN ${crn}!`);
+    } catch (error: any) {
+      console.log('Registration error:', error);
+      let errorMessage = 'Failed to register for course.';
+      if (error.response && error.response.data) {
+        if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        } else if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        }
+      }
+      Alert.alert('Registration Failed', errorMessage);
+    }
   };
 
   return (
@@ -56,14 +90,18 @@ export default function CRNLookupScreen() {
           <Text style={styles.emptyText}>No courses found.</Text>
         ) : filteredCourses.map(course => (
           <TouchableOpacity
-            key={course.crn}
+            key={course.crn || course.CRN}
             style={styles.courseItem}
-            onPress={() => handleRegister(course.crn)}
+            onPress={() => handleRegister(course.crn || course.CRN)}
           >
             <Ionicons name="book-outline" size={24} color="#d67b32" style={{ marginRight: 12 }} />
             <View>
-              <Text style={styles.courseTitle}>{course.subject} {course.courseNumber}: {course.courseName}</Text>
-              <Text style={styles.courseDetails}>CRN: {course.crn} | {course.time} | {course.days}</Text>
+              <Text style={styles.courseTitle}>
+                {course.subject || course.department} {course.courseNumber || course.number}: {course.courseName || course.name}
+              </Text>
+              <Text style={styles.courseDetails}>
+                CRN: {course.crn || course.CRN} | {course.time} | {course.days || course.day}
+              </Text>
             </View>
           </TouchableOpacity>
         ))}
