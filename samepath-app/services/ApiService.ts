@@ -32,20 +32,18 @@ export const getSchedule = (user_id: number) => {
   return axios.get(`${API_BASE}/get_schedule?${params.toString()}`);
 };
 
-export const getScheduleByEmail = (email: string) => {
-  const params = new URLSearchParams({ email });
-  return axios.get(`${API_BASE}/schedule?${params.toString()}`);
-};
+// Note: This endpoint doesn't exist in our API - removed
 
 export const registerCourses = (user_id: number, crns: number[]) => {
   const params = new URLSearchParams({ 
-    user_id: String(user_id),
-    crns: JSON.stringify(crns)
+    user_id: String(user_id)
   });
-  return axios.post(`${API_BASE}/register_courses?${params.toString()}`);
+  return axios.post(`${API_BASE}/register_courses?${params.toString()}`, {
+    crns: crns
+  });
 };
 
-export const getSchools = () => {
+export const schools = () => {
   return axios.get(`${API_BASE}/get_schools`);
 };
 

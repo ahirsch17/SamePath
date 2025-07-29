@@ -25,21 +25,9 @@ export default function SamePathScreen() {
       setLoading(true);
       let user_id = await AsyncStorage.getItem('user_id');
       
-      // If no user_id, try using email instead
+      // If no user_id, show error
       if (!user_id) {
-        const user_email = await AsyncStorage.getItem('user_email');
-        if (user_email) {
-          console.log('User logged in with email:', user_email);
-          try {
-            const response = await ApiService.getScheduleByEmail(user_email);
-            setSchedule(response.data.schedule || []);
-          } catch (error) {
-            console.log('Failed to get schedule with email:', error);
-            Alert.alert('Info', 'Login successful! However, the app needs user_id to function properly. Please contact support to add user_id to login response.');
-          }
-        } else {
-          Alert.alert('Error', 'User not logged in.');
-        }
+        Alert.alert('Error', 'User not logged in properly. Please log in again.');
         setLoading(false);
         return;
       }
@@ -81,6 +69,15 @@ export default function SamePathScreen() {
             <Image source={require('../assets/SamePathLogo.png')} style={styles.logo} resizeMode="contain" />
           </View>
           <View style={styles.headerActions}>
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={() => navigation.navigate('Notifications' as never)}
+            >
+              <View style={styles.notificationContainer}>
+                <Ionicons name="notifications" size={24} color="#fff" />
+                <View style={styles.notificationDot} />
+              </View>
+            </TouchableOpacity>
             <TouchableOpacity 
               style={styles.headerButton}
               onPress={() => navigation.navigate('Network' as never)}
@@ -476,5 +473,17 @@ const styles = StyleSheet.create({
   activityLocation: {
     fontSize: 14,
     color: '#64748b',
+  },
+  notificationContainer: {
+    position: 'relative',
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF4444',
   },
 }); 

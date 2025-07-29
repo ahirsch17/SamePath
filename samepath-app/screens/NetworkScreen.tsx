@@ -52,6 +52,10 @@ export default function NetworkScreen() {
     Alert.alert('Group Updated', 'Join/leave functionality coming soon.');
   };
 
+  const navigateToFriends = () => {
+    navigation.navigate('Friends' as never);
+  };
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -68,6 +72,32 @@ export default function NetworkScreen() {
 
       {/* Content */}
       <ScrollView style={styles.contentContainer} showsVerticalScrollIndicator={false}>
+        {/* Friends Section */}
+        <View style={styles.friendsSection}>
+          <Text style={styles.sectionTitle}>Friends</Text>
+          <TouchableOpacity style={styles.friendsCard} onPress={navigateToFriends}>
+            <View style={styles.friendsCardContent}>
+              <Ionicons name="people" size={24} color="#d67b32" />
+              <View style={styles.friendsCardText}>
+                <Text style={styles.friendsCardTitle}>Manage Friends</Text>
+                <Text style={styles.friendsCardSubtitle}>Send requests, accept friends, and more</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#666" />
+            </View>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.friendsCard} onPress={() => navigation.navigate('ContactMatch' as never)}>
+            <View style={styles.friendsCardContent}>
+              <Ionicons name="people-circle" size={24} color="#2196F3" />
+              <View style={styles.friendsCardText}>
+                <Text style={styles.friendsCardTitle}>Find Friends</Text>
+                <Text style={styles.friendsCardSubtitle}>Connect with contacts from your school</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#666" />
+            </View>
+          </TouchableOpacity>
+        </View>
+
         <Text style={styles.sectionTitle}>Available Class Groups</Text>
         {loading ? (
           <Text>Loading...</Text>
@@ -209,5 +239,34 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#ccc',
     marginTop: 16,
+  },
+  friendsSection: {
+    marginBottom: 30,
+  },
+  friendsCard: {
+    backgroundColor: '#f8f9fa',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: '#d67b32',
+  },
+  friendsCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  friendsCardText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  friendsCardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#222',
+    marginBottom: 4,
+  },
+  friendsCardSubtitle: {
+    fontSize: 14,
+    color: '#666',
   },
 }); 

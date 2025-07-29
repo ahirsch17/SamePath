@@ -27,7 +27,7 @@ export default function SetupScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [school, setSchool] = useState('');
   const [password, setPassword] = useState('');
-  const [schools, setSchools] = useState<any[]>([]);
+  const [schools, setSchools] = useState<Array<{display_name: string, internal_name: string}>>([]);
   const [showSchoolPicker, setShowSchoolPicker] = useState(false);
   const [agreed, setAgreed] = useState(false);
 
@@ -45,7 +45,7 @@ export default function SetupScreen() {
   useEffect(() => {
     const fetchSchools = async () => {
       try {
-        const response = await ApiService.getSchools();
+        const response = await ApiService.schools();
         if (response.data && response.data.schools) {
           setSchools(response.data.schools);
         }
@@ -74,7 +74,8 @@ export default function SetupScreen() {
         }
         await AsyncStorage.setItem('user_email', email.trim());
         console.log('Signup successful, stored email:', email.trim());
-        navigation.reset({ index: 0, routes: [{ name: 'SamePath' }] });
+        // Navigate to contact matching instead of main app
+        navigation.navigate('ContactMatch' as never);
       } else {
         // Handle signup failure
         const errorMessage = response.data?.error_message || response.data?.error || 'Please check your info and try again.';
@@ -111,129 +112,137 @@ export default function SetupScreen() {
         <Ionicons name="arrow-back" size={24} color="#333" />
       </TouchableOpacity>
 
-      <Image source={logo} style={styles.logo} resizeMode="contain" />
+      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        <Image source={logo} style={styles.logo} resizeMode="contain" />
 
-      <Text style={styles.subtext}>
-        Enter your info and choose a secure password.
-      </Text>
-
-      <Text style={styles.label}>First Name</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="e.g., Alexis"
-        value={firstName}
-        onChangeText={setFirstName}
-        autoCapitalize="words"
-      />
-
-      <Text style={styles.label}>Last Name</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="e.g., Hirsch"
-        value={lastName}
-        onChangeText={setLastName}
-        autoCapitalize="words"
-      />
-
-      <Text style={styles.label}>Email</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="e.g., alexishirsch@vt.edu"
-        value={email}
-        onChangeText={setEmail}
-        autoCapitalize="none"
-        autoCorrect={false}
-      />
-
-      <Text style={styles.label}>Phone Number</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="e.g., +1 (555) 123-4567"
-        value={phoneNumber}
-        onChangeText={setPhoneNumber}
-        keyboardType="phone-pad"
-      />
-
-      <Text style={styles.label}>School</Text>
-      <TouchableOpacity
-        style={styles.input}
-        onPress={() => setShowSchoolPicker(true)}
-      >
-        <Text style={[styles.inputText, !school && styles.placeholderText]}>
-          {school || "Select your school"}
+        <Text style={styles.subtext}>
+          Enter your info and choose a secure password.
         </Text>
-        <Ionicons name="chevron-down" size={20} color="#666" style={styles.chevron} />
-      </TouchableOpacity>
 
-      <Text style={styles.label}>Choose a Password</Text>
-      <TextInput
-        style={styles.input}
-        secureTextEntry
-        placeholder="length > 8, include capital letter and special character"
-        value={password}
-        onChangeText={setPassword}
-      />
+        {/* Name Row */}
+        <View style={styles.nameRow}>
+          <View style={styles.nameField}>
+            <Text style={styles.label}>First Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., Alexis"
+              value={firstName}
+              onChangeText={setFirstName}
+              autoCapitalize="words"
+            />
+          </View>
+          <View style={styles.nameField}>
+            <Text style={styles.label}>Last Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., Hirsch"
+              value={lastName}
+              onChangeText={setLastName}
+              autoCapitalize="words"
+            />
+          </View>
+        </View>
 
-      <View style={styles.agreeRow}>
+        <Text style={styles.label}>Email</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="e.g., alexishirsch@vt.edu"
+          value={email}
+          onChangeText={setEmail}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
+
+        <Text style={styles.label}>Phone Number</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="e.g., +1 (555) 123-4567"
+          value={phoneNumber}
+          onChangeText={setPhoneNumber}
+          keyboardType="phone-pad"
+        />
+
+        <Text style={styles.label}>School</Text>
         <TouchableOpacity
-          style={styles.checkbox}
-          onPress={() => setAgreed(!agreed)}
+          style={styles.input}
+          onPress={() => setShowSchoolPicker(true)}
         >
-          {agreed && <View style={styles.checkboxChecked} />}
+          <Text style={[styles.inputText, !school && styles.placeholderText]}>
+            {school || "Select your school"}
+          </Text>
+          <Ionicons name="chevron-down" size={20} color="#666" style={styles.chevron} />
         </TouchableOpacity>
-        <Text style={styles.agreeText}>
-          I agree to the{' '}
-          <Text
-            style={styles.termsLink}
-            onPress={() => navigation.navigate('Terms' as never)}
+
+        <Text style={styles.label}>Choose a Password</Text>
+        <TextInput
+          style={styles.input}
+          secureTextEntry
+          placeholder="length > 8, include capital letter and special character"
+          value={password}
+          onChangeText={setPassword}
+        />
+
+        <View style={styles.agreeRow}>
+          <TouchableOpacity
+            style={styles.checkbox}
+            onPress={() => setAgreed(!agreed)}
           >
-            Terms of Use
+            {agreed && <View style={styles.checkboxChecked} />}
+          </TouchableOpacity>
+          <Text style={styles.agreeText}>
+            I agree to the{' '}
+            <Text
+              style={styles.termsLink}
+              onPress={() => navigation.navigate('Terms' as never)}
+            >
+              Terms of Use
+            </Text>
           </Text>
-        </Text>
-      </View>
+        </View>
 
-      {/* Validation messages */}
-      <View style={styles.validationContainer}>
-        {firstName.length === 0 && (
-          <Text style={styles.validationText}>❌ Please enter your first name</Text>
-        )}
-        {lastName.length === 0 && (
-          <Text style={styles.validationText}>❌ Please enter your last name</Text>
-        )}
-        {email.length === 0 && (
-          <Text style={styles.validationText}>❌ Please enter your email</Text>
-        )}
-        {phoneNumber.length === 0 && (
-          <Text style={styles.validationText}>❌ Please enter your phone number</Text>
-        )}
-        {phoneNumber.length > 0 && !isPhoneValid() && (
-          <Text style={styles.validationText}>
-            ❌ Please enter a valid phone number
-          </Text>
-        )}
-        {school.length === 0 && (
-          <Text style={styles.validationText}>❌ Please select your school</Text>
-        )}
-        {password.length === 0 && (
-          <Text style={styles.validationText}>❌ Please enter a password</Text>
-        )}
-        {password.length > 0 && !isPasswordValid() && (
-          <Text style={styles.validationText}>
-            ❌ Password must be at least 8 characters with uppercase and special character
-          </Text>
-        )}
-        {!agreed && (
-          <Text style={styles.validationText}>❌ Please agree to Terms of Use</Text>
-        )}
-      </View>
+        {/* Validation messages */}
+        <View style={styles.validationContainer}>
+          {firstName.length === 0 && (
+            <Text style={styles.validationText}>❌ Please enter your first name</Text>
+          )}
+          {lastName.length === 0 && (
+            <Text style={styles.validationText}>❌ Please enter your last name</Text>
+          )}
+          {email.length === 0 && (
+            <Text style={styles.validationText}>❌ Please enter your email</Text>
+          )}
+          {phoneNumber.length === 0 && (
+            <Text style={styles.validationText}>❌ Please enter your phone number</Text>
+          )}
+          {phoneNumber.length > 0 && !isPhoneValid() && (
+            <Text style={styles.validationText}>
+              ❌ Please enter a valid phone number
+            </Text>
+          )}
+          {school.length === 0 && (
+            <Text style={styles.validationText}>❌ Please select your school</Text>
+          )}
+          {password.length === 0 && (
+            <Text style={styles.validationText}>❌ Please enter a password</Text>
+          )}
+          {password.length > 0 && !isPasswordValid() && (
+            <Text style={styles.validationText}>
+              ❌ Password must be at least 8 characters with uppercase and special character
+            </Text>
+          )}
+          {!agreed && (
+            <Text style={styles.validationText}>❌ Please agree to Terms of Use</Text>
+          )}
+        </View>
 
-      <TouchableOpacity
-        style={[styles.button, !isFormValid() && styles.disabledButton]}
-        onPress={handleSubmit}
-        disabled={!isFormValid()}
-      >
-        <Text style={styles.buttonText}>Sign Up</Text>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.button, !isFormValid() && styles.disabledButton]}
+          onPress={handleSubmit}
+          disabled={!isFormValid()}
+        >
+          <Text style={styles.buttonText}>Sign Up</Text>
+        </TouchableOpacity>
+      </ScrollView>
 
       {/* School Picker Modal */}
       <Modal
@@ -256,11 +265,11 @@ export default function SetupScreen() {
                   key={index}
                   style={styles.schoolItem}
                   onPress={() => {
-                    setSchool(schoolData.school_name);
+                    setSchool(schoolData.display_name);
                     setShowSchoolPicker(false);
                   }}
                 >
-                  <Text style={styles.schoolName}>{schoolData.school_name}</Text>
+                  <Text style={styles.schoolName}>{schoolData.display_name}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -276,6 +285,9 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 60,
     flex: 1,
     backgroundColor: '#fff',
+  },
+  scrollContainer: {
+    flex: 1,
     paddingHorizontal: 25,
   },
   backButton: {
@@ -415,5 +427,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     fontWeight: '500',
+  },
+  nameRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+  },
+  nameField: {
+    width: '48%',
   },
 });
