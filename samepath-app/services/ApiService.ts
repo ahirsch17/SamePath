@@ -125,4 +125,9 @@ export const getFriendsList = (user_id: number) => {
   return axios.get(`${API_BASE}/get_friends_list?${params.toString()}`);
 };
 
+export const getUserById = (user_id: number) => {
+  const params = new URLSearchParams({ user_id: String(user_id) });
+  return axios.get(`${API_BASE}/get_user_by_id?${params.toString()}`);
+};
+
  

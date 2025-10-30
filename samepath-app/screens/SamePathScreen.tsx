@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ApiService from '../services/ApiService';
 
@@ -52,8 +52,9 @@ export default function SamePathScreen() {
     fetchSchedule();
   }, []);
 
-  useEffect(() => {
-    const fetchPending = async () => {
+  const isFocused = useIsFocused();
+
+  const fetchPending = useCallback(async () => {
       try {
         const user_id = await AsyncStorage.getItem('user_id');
         if (!user_id) return;
@@ -64,9 +65,11 @@ export default function SamePathScreen() {
       } catch (e) {
         // ignore badge errors
       }
-    };
-    fetchPending();
   }, []);
+
+  useEffect(() => {
+    fetchPending();
+  }, [isFocused, fetchPending]);
 
   const getNextClass = () => {
     if (!schedule.length) return null;

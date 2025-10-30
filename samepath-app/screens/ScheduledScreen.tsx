@@ -24,6 +24,9 @@ export default function ScheduleScreen() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [showFriendModal, setShowFriendModal] = useState(false);
+  const [friendsInSection, setFriendsInSection] = useState<any[]>([]);
+  const [friendsInOther, setFriendsInOther] = useState<any[]>([]);
+  const [friendsLoading, setFriendsLoading] = useState(false);
 
   useEffect(() => {
     const fetchSchedule = async () => {
@@ -62,6 +65,38 @@ export default function ScheduleScreen() {
     setSelectedCourse(course);
     setShowFriendModal(true);
   };
+
+  useEffect(() => {
+    const loadFriendsForCourse = async () => {
+      if (!showFriendModal || !selectedCourse) return;
+      setFriendsLoading(true);
+      try {
+        const uid = await AsyncStorage.getItem('user_id');
+        if (!uid) return;
+        const crn = Number(selectedCourse.crn || selectedCourse.CRN);
+        const [inSecResp, otherResp] = await Promise.all([
+          ApiService.getFriendsInThisSection(Number(uid), crn),
+          ApiService.getFriendsInOtherSections(Number(uid), crn)
+        ]);
+        const inIds: number[] = inSecResp.data?.friends_in_section || [];
+        const otherIds: number[] = otherResp.data?.friends_in_other_sections || [];
+        const fetchUser = async (id: number) => {
+          try { const r = await ApiService.getUserById(id); return r.data?.user || { user_id: id }; } catch { return { user_id: id }; }
+        };
+        const [inUsers, otherUsers] = await Promise.all([
+          Promise.all(inIds.map(fetchUser)),
+          Promise.all(otherIds.map(fetchUser))
+        ]);
+        setFriendsInSection(inUsers);
+        setFriendsInOther(otherUsers);
+      } catch (e) {
+        setFriendsInSection([]);
+        setFriendsInOther([]);
+      }
+      setFriendsLoading(false);
+    };
+    loadFriendsForCourse();
+  }, [showFriendModal, selectedCourse]);
 
   const renderScheduleItem = (item: any) => (
     <View key={item.crn || item.CRN || item.id} style={styles.scheduleItem}>
@@ -166,11 +201,35 @@ export default function ScheduleScreen() {
               </TouchableOpacity>
             </View>
             <ScrollView style={styles.modalBody}>
-              {/* TODO: Populate with real friends data from API if available */}
-              <View style={styles.emptyModalState}>
-                <Ionicons name="people-outline" size={48} color="#ccc" />
-                <Text style={styles.emptyModalText}>No friends in this course</Text>
-              </View>
+              {friendsLoading ? (
+                <Text>Loading friends...</Text>
+              ) : (
+                <>
+                  <Text style={styles.modalSectionTitle}>Friends in this section</Text>
+                  {friendsInSection.length === 0 ? (
+                    <Text style={styles.emptyModalText}>None</Text>
+                  ) : (
+                    friendsInSection.map((u: any) => (
+                      <View key={`in-${u.user_id}`} style={styles.friendItem}>
+                        <Ionicons name="person" size={20} color="#6366f1" />
+                        <Text style={styles.friendName}>{u.first_name ? `${u.first_name} ${u.last_name}` : u.email || `User ${u.user_id}`}</Text>
+                      </View>
+                    ))
+                  )}
+                  <View style={{ height: 12 }} />
+                  <Text style={styles.modalSectionTitle}>Friends in other sections</Text>
+                  {friendsInOther.length === 0 ? (
+                    <Text style={styles.emptyModalText}>None</Text>
+                  ) : (
+                    friendsInOther.map((u: any) => (
+                      <View key={`out-${u.user_id}`} style={styles.friendItem}>
+                        <Ionicons name="person" size={20} color="#94a3b8" />
+                        <Text style={styles.friendName}>{u.first_name ? `${u.first_name} ${u.last_name}` : u.email || `User ${u.user_id}`}</Text>
+                      </View>
+                    ))
+                  )}
+                </>
+              )}
             </ScrollView>
           </View>
         </View>
