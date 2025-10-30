@@ -76,7 +76,6 @@ export default function CRNLookupScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>CRN Lookup</Text>
       <TextInput
         style={styles.input}
         placeholder="Search by CRN, course name, or subject"
@@ -116,12 +115,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     padding: 24,
   },
-  header: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 24,
-    color: '#d67b32',
-  },
+  
   input: {
     height: 45,
     borderColor: '#ccc',
