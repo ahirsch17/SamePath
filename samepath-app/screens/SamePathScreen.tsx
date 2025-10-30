@@ -729,5 +729,4 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginTop: 2,
   },
-}); 
-}); 
+});
