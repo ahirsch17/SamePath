@@ -248,7 +248,7 @@ export default function SamePathScreen() {
               onPress={() => navigation.navigate('Notifications' as never)}
             >
               <View style={styles.notificationContainer}>
-                <Ionicons name="notifications" size={24} color="#fff" />
+                <Ionicons name="notifications" size={24} color="#ffffff" />
                 {pendingRequests > 0 && (
                   <View style={styles.notificationBadge}>
                     <Text style={styles.notificationBadgeText}>
@@ -262,13 +262,13 @@ export default function SamePathScreen() {
               style={styles.headerButton}
               onPress={() => navigation.navigate('Network' as never)}
             >
-              <Ionicons name="people" size={24} color="#fff" />
+              <Ionicons name="people" size={24} color="#ffffff" />
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.headerButton}
               onPress={() => navigation.navigate('Preferences' as never)}
             >
-              <Ionicons name="settings" size={24} color="#fff" />
+              <Ionicons name="settings" size={24} color="#ffffff" />
             </TouchableOpacity>
           </View>
         </View>
@@ -429,7 +429,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8fafc',
   },
   header: {
-    backgroundColor: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    backgroundColor: '#667eea',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 60,
     paddingBottom: 20,
     paddingHorizontal: 20,
