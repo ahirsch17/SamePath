@@ -36,39 +36,30 @@ export default function NotificationsScreen() {
 
   const loadNotifications = async () => {
     setLoading(true);
-    // For now, we'll show sample notifications
-    // In the future, this would fetch from the API
-    const sampleNotifications: Notification[] = [
-      {
-        id: '1',
+    try {
+      const user_id = await AsyncStorage.getItem('user_id');
+      if (!user_id) {
+        setNotifications([]);
+        setLoading(false);
+        return;
+      }
+      const resp = await ApiService.getFriendsList(Number(user_id));
+      const items = Array.isArray(resp.data?.friends) ? resp.data.friends : [];
+      const inbound = items.filter((f: any) => f.status === 'pending_received');
+      const now = new Date();
+      const notifs: Notification[] = inbound.map((f: any, idx: number) => ({
+        id: String(f.id ?? f.user_id ?? idx),
         type: 'friend_request',
         title: 'New Friend Request',
-        message: 'John Doe wants to be your friend',
-        timestamp: '2 minutes ago',
+        message: `${f.name || f.email || 'Someone'} wants to be your friend`,
+        timestamp: now.toLocaleString(),
         read: false,
-        data: { userId: 1, userName: 'John Doe' }
-      },
-      {
-        id: '2',
-        type: 'course_match',
-        title: 'Course Match Found!',
-        message: 'You and Sarah Wilson are both in MATH 101',
-        timestamp: '1 hour ago',
-        read: false,
-        data: { courseName: 'MATH 101', userName: 'Sarah Wilson' }
-      },
-      {
-        id: '3',
-        type: 'schedule_update',
-        title: 'Schedule Update',
-        message: 'Your CS 1114 class has been moved to Room 205',
-        timestamp: '3 hours ago',
-        read: true,
-        data: { courseName: 'CS 1114', newRoom: 'Room 205' }
-      }
-    ];
-    
-    setNotifications(sampleNotifications);
+        data: { userId: Number(f.id ?? f.user_id), userName: f.name ?? f.email }
+      }));
+      setNotifications(notifs);
+    } catch (e) {
+      setNotifications([]);
+    }
     setLoading(false);
   };
 
@@ -92,7 +83,7 @@ export default function NotificationsScreen() {
         await ApiService.acceptFriendRequest(Number(user_id), notification.data.userId);
         Alert.alert('Success', 'Friend request accepted!');
       } else {
-        // TODO: Add reject friend request API call
+        await ApiService.declineFriendRequest(Number(user_id), notification.data.userId);
         Alert.alert('Request Declined', 'Friend request declined.');
       }
       
