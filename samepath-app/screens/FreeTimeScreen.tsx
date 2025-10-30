@@ -63,6 +63,7 @@ const getDailyIntervals = (schedule: { days: string; time: string }[]) => {
 export default function FreeTimeScreen() {
   const [tooltip, setTooltip] = useState<{ dayIdx: number; x: number; time: string } | null>(null);
   const [activityModal, setActivityModal] = useState<{ dayIdx: number; start: number; end: number } | null>(null);
+  const [activityPrefs, setActivityPrefs] = useState<Record<string, Record<string, boolean>>>({});
   const [schedule, setSchedule] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const barRefs = useRef<(View | null)[]>([]);
@@ -85,6 +86,13 @@ export default function FreeTimeScreen() {
       setLoading(false);
     };
     fetchSchedule();
+    // load stored activity preferences
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem('free_time_activity_prefs');
+        if (raw) setActivityPrefs(JSON.parse(raw));
+      } catch {}
+    })();
   }, []);
 
   const getBarPanResponder = (dayIdx: number) => PanResponder.create({
@@ -119,6 +127,18 @@ export default function FreeTimeScreen() {
 
   // Convert API schedule to intervals
   const intervals = getDailyIntervals(schedule);
+
+  const getBlockKey = (dayIdx: number, start: number, end: number) => `${dayIdx}:${start}-${end}`;
+  const isActivitySelected = (key: string, activity: string) => !!activityPrefs[key]?.[activity];
+  const toggleActivity = async (key: string, activity: string) => {
+    setActivityPrefs(prev => {
+      const next = { ...prev } as Record<string, Record<string, boolean>>;
+      next[key] = next[key] ? { ...next[key] } : {};
+      next[key][activity] = !next[key][activity];
+      AsyncStorage.setItem('free_time_activity_prefs', JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  };
 
   return (
     <View style={styles.container}>
@@ -276,16 +296,20 @@ export default function FreeTimeScreen() {
                 {`${Math.floor(activityModal.start / 60)}:${(activityModal.start % 60).toString().padStart(2, '0')} - ${Math.floor(activityModal.end / 60)}:${(activityModal.end % 60).toString().padStart(2, '0')}`}
               </Text>
               <View style={styles.activityList}>
-                {ACTIVITIES.map(activity => (
-                  <TouchableOpacity
-                    key={activity}
-                    style={styles.activityOption}
-                    onPress={() => setActivityModal(null)}
-                  >
-                    <View style={styles.activityCheckbox} />
-                    <Text style={styles.activityOptionText}>{activity}</Text>
-                  </TouchableOpacity>
-                ))}
+                {ACTIVITIES.map(activity => {
+                  const key = getBlockKey(activityModal.dayIdx, activityModal.start, activityModal.end);
+                  const selected = isActivitySelected(key, activity);
+                  return (
+                    <TouchableOpacity
+                      key={activity}
+                      style={styles.activityOption}
+                      onPress={() => toggleActivity(key, activity)}
+                    >
+                      <View style={[styles.activityCheckbox, selected && { backgroundColor: '#6366f1' }]} />
+                      <Text style={styles.activityOptionText}>{activity}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
               </View>
               <TouchableOpacity
                 style={styles.modalButton}

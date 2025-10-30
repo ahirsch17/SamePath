@@ -14,6 +14,9 @@ import FreeTimeScreen from './screens/FreeTimeScreen';
 import CRNLookupScreen from './screens/CRNLookupScreen';
 import NetworkScreen from './screens/NetworkScreen';
 import PreferencesScreen from './screens/PreferencesScreen';
+import FriendsScreen from './screens/FriendsScreen';
+import NotificationsScreen from './screens/NotificationsScreen';
+import ContactMatchScreen from './screens/ContactMatchScreen';
 
 const Stack = createStackNavigator();
 
@@ -33,6 +36,9 @@ export default function App() {
         <Stack.Screen name="CRNLookup" component={CRNLookupScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Network" component={NetworkScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Preferences" component={PreferencesScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Friends" component={FriendsScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="ContactMatch" component={ContactMatchScreen} options={{ headerShown: false }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
