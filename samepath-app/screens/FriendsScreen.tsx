@@ -42,13 +42,20 @@ export default function FriendsScreen() {
       return;
     }
 
-    // For now, we'll show a placeholder since we need to implement
-    // friend list retrieval from the API
-    setFriends([
-      { id: 1, name: 'John Doe', email: 'john@example.com', status: 'friend' },
-      { id: 2, name: 'Jane Smith', email: 'jane@example.com', status: 'pending_sent' },
-      { id: 3, name: 'Bob Wilson', email: 'bob@example.com', status: 'pending_received' },
-    ]);
+    try {
+      const response = await ApiService.getFriendsList(Number(user_id));
+      const items = Array.isArray(response.data?.friends) ? response.data.friends : [];
+      const mapped: Friend[] = items.map((f: any) => ({
+        id: Number(f.id ?? f.user_id ?? f.friend_id),
+        name: String(f.name ?? f.full_name ?? f.email ?? 'User'),
+        email: String(f.email ?? ''),
+        status: (f.status === 'accepted' ? 'friend' : (f.status as any))
+      }));
+      setFriends(mapped);
+    } catch (e) {
+      console.log('Load friends error:', e);
+      Alert.alert('Error', 'Failed to load friends');
+    }
     setLoading(false);
   };
 
@@ -98,6 +105,48 @@ export default function FriendsScreen() {
         } else if (error.response.data.message) {
           errorMessage = error.response.data.message;
         }
+      }
+      Alert.alert('Error', errorMessage);
+    }
+  };
+
+  const declineFriendRequest = async (friendId: number) => {
+    const user_id = await AsyncStorage.getItem('user_id');
+    if (!user_id) {
+      Alert.alert('Error', 'User not logged in.');
+      return;
+    }
+    try {
+      await ApiService.declineFriendRequest(Number(user_id), friendId);
+      Alert.alert('Success', 'Friend request declined.');
+      loadFriends();
+    } catch (error: any) {
+      console.log('Decline friend request error:', error);
+      let errorMessage = 'Failed to decline friend request.';
+      if (error.response && error.response.data) {
+        if (error.response.data.error) errorMessage = error.response.data.error;
+        else if (error.response.data.message) errorMessage = error.response.data.message;
+      }
+      Alert.alert('Error', errorMessage);
+    }
+  };
+
+  const unsendFriendRequest = async (friendId: number) => {
+    const user_id = await AsyncStorage.getItem('user_id');
+    if (!user_id) {
+      Alert.alert('Error', 'User not logged in.');
+      return;
+    }
+    try {
+      await ApiService.unsendFriendRequest(Number(user_id), friendId);
+      Alert.alert('Success', 'Friend request cancelled.');
+      loadFriends();
+    } catch (error: any) {
+      console.log('Unsend friend request error:', error);
+      let errorMessage = 'Failed to cancel friend request.';
+      if (error.response && error.response.data) {
+        if (error.response.data.error) errorMessage = error.response.data.error;
+        else if (error.response.data.message) errorMessage = error.response.data.message;
       }
       Alert.alert('Error', errorMessage);
     }
@@ -204,47 +253,76 @@ export default function FriendsScreen() {
           </View>
         </View>
 
-        {/* Friends List */}
+        {/* Friends & Requests */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Incoming Requests</Text>
+          {friends.filter(f => f.status === 'pending_received').length === 0 ? (
+            <Text style={styles.loadingText}>No incoming requests</Text>
+          ) : (
+            friends.filter(f => f.status === 'pending_received').map(friend => (
+              <View key={`in-${friend.id}`} style={styles.friendCard}>
+                <View style={styles.friendInfo}>
+                  <Text style={styles.friendName}>{friend.name}</Text>
+                  <Text style={styles.friendEmail}>{friend.email}</Text>
+                </View>
+                <View style={styles.friendActions}>
+                  <TouchableOpacity style={styles.acceptButton} onPress={() => acceptFriendRequest(friend.id)}>
+                    <Text style={styles.acceptButtonText}>Accept</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.removeButton} onPress={() => declineFriendRequest(friend.id)}>
+                    <Ionicons name="close-circle" size={20} color="#FF4444" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Sent Requests</Text>
+          {friends.filter(f => f.status === 'pending_sent').length === 0 ? (
+            <Text style={styles.loadingText}>No sent requests</Text>
+          ) : (
+            friends.filter(f => f.status === 'pending_sent').map(friend => (
+              <View key={`out-${friend.id}`} style={styles.friendCard}>
+                <View style={styles.friendInfo}>
+                  <Text style={styles.friendName}>{friend.name}</Text>
+                  <Text style={styles.friendEmail}>{friend.email}</Text>
+                </View>
+                <View style={styles.friendActions}>
+                  <TouchableOpacity style={styles.removeButton} onPress={() => unsendFriendRequest(friend.id)}>
+                    <Ionicons name="trash-outline" size={20} color="#FF9800" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )}
+        </View>
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your Friends</Text>
           {loading ? (
             <Text style={styles.loadingText}>Loading friends...</Text>
-          ) : friends.length === 0 ? (
+          ) : friends.filter(f => f.status === 'friend').length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons name="people-outline" size={48} color="#ccc" />
               <Text style={styles.emptyText}>No friends yet</Text>
               <Text style={styles.emptySubtext}>Send friend requests to connect with others!</Text>
             </View>
           ) : (
-            friends.map((friend) => (
+            friends.filter(f => f.status === 'friend').map((friend) => (
               <View key={friend.id} style={styles.friendCard}>
                 <View style={styles.friendInfo}>
                   <Text style={styles.friendName}>{friend.name}</Text>
                   <Text style={styles.friendEmail}>{friend.email}</Text>
-                  <View style={styles.statusContainer}>
-                    <View style={[styles.statusDot, { backgroundColor: getStatusColor(friend.status) }]} />
-                    <Text style={[styles.statusText, { color: getStatusColor(friend.status) }]}>
-                      {getStatusText(friend.status)}
-                    </Text>
-                  </View>
                 </View>
                 <View style={styles.friendActions}>
-                  {friend.status === 'pending_received' && (
-                    <TouchableOpacity
-                      style={styles.acceptButton}
-                      onPress={() => acceptFriendRequest(friend.id)}
-                    >
-                      <Text style={styles.acceptButtonText}>Accept</Text>
-                    </TouchableOpacity>
-                  )}
-                  {friend.status === 'friend' && (
-                    <TouchableOpacity
-                      style={styles.removeButton}
-                      onPress={() => removeFriend(friend.id)}
-                    >
-                      <Ionicons name="trash-outline" size={20} color="#FF4444" />
-                    </TouchableOpacity>
-                  )}
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => removeFriend(friend.id)}
+                  >
+                    <Ionicons name="trash-outline" size={20} color="#FF4444" />
+                  </TouchableOpacity>
                 </View>
               </View>
             ))

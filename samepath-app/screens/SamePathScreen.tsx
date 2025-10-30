@@ -19,6 +19,7 @@ export default function SamePathScreen() {
   const navigation = useNavigation();
   const [schedule, setSchedule] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pendingRequests, setPendingRequests] = useState(0);
 
   useEffect(() => {
     const fetchSchedule = async () => {
@@ -51,6 +52,22 @@ export default function SamePathScreen() {
     fetchSchedule();
   }, []);
 
+  useEffect(() => {
+    const fetchPending = async () => {
+      try {
+        const user_id = await AsyncStorage.getItem('user_id');
+        if (!user_id) return;
+        const resp = await ApiService.getFriendsList(Number(user_id));
+        const items = Array.isArray(resp.data?.friends) ? resp.data.friends : [];
+        const count = items.filter((f: any) => f.status === 'pending_received').length;
+        setPendingRequests(count);
+      } catch (e) {
+        // ignore badge errors
+      }
+    };
+    fetchPending();
+  }, []);
+
   const getNextClass = () => {
     if (!schedule.length) return null;
     // Assume schedule is sorted by time, or sort if needed
@@ -75,7 +92,13 @@ export default function SamePathScreen() {
             >
               <View style={styles.notificationContainer}>
                 <Ionicons name="notifications" size={24} color="#fff" />
-                <View style={styles.notificationDot} />
+                {pendingRequests > 0 && (
+                  <View style={styles.notificationBadge}>
+                    <Text style={styles.notificationBadgeText}>
+                      {pendingRequests > 9 ? '9+' : String(pendingRequests)}
+                    </Text>
+                  </View>
+                )}
               </View>
             </TouchableOpacity>
             <TouchableOpacity 
@@ -477,13 +500,21 @@ const styles = StyleSheet.create({
   notificationContainer: {
     position: 'relative',
   },
-  notificationDot: {
+  notificationBadge: {
     position: 'absolute',
-    top: -2,
-    right: -2,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    top: -6,
+    right: -8,
+    minWidth: 16,
+    height: 16,
+    paddingHorizontal: 3,
+    borderRadius: 8,
     backgroundColor: '#FF4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notificationBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '700',
   },
 }); 

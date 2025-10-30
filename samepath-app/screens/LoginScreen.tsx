@@ -32,13 +32,23 @@ export default function LoginScreen() {
       console.log('Login response:', JSON.stringify(response.data, null, 2));
       console.log('Response status:', response.status);
       
-      // Check if login was successful based on the new API response format
-      if (response.data && response.data.success) {
-        // Store both user_id and email
-        if (response.data.user_id) {
-          await AsyncStorage.setItem('user_id', String(response.data.user_id));
-          console.log('Login successful, stored user_id:', response.data.user_id);
+      // Check if login was successful based on possible API formats
+      if (response.data && (response.data.success === true || response.status === 200)) {
+        // Normalize user_id from different shapes
+        const normalizedUserId = response.data.user_id
+          ?? response.data.user?.id
+          ?? response.data.userId
+          ?? response.data?.data?.user_id;
+
+        if (normalizedUserId != null) {
+          await AsyncStorage.setItem('user_id', String(normalizedUserId));
+          console.log('Login successful, stored user_id:', normalizedUserId);
+        } else {
+          // If we cannot determine user_id, block navigation to avoid empty schedule state
+          Alert.alert('Login issue', 'Could not determine your user ID. Please try again.');
+          return;
         }
+
         await AsyncStorage.setItem('user_email', email.trim());
         console.log('Login successful, stored email:', email.trim());
         navigation.reset({ index: 0, routes: [{ name: 'SamePath' }] });

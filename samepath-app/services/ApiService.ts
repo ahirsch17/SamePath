@@ -96,6 +96,14 @@ export const acceptFriendRequest = (user_id: number, friend_id: number) => {
   return axios.post(`${API_BASE}/accept_friend_request?${params.toString()}`);
 };
 
+export const declineFriendRequest = (user_id: number, friend_id: number) => {
+  const params = new URLSearchParams({ 
+    user_id: String(user_id),
+    friend_id: String(friend_id)
+  });
+  return axios.post(`${API_BASE}/decline_friend_request?${params.toString()}`);
+};
+
 export const unsendFriendRequest = (user_id: number, friend_id: number) => {
   const params = new URLSearchParams({ 
     user_id: String(user_id),
@@ -110,6 +118,11 @@ export const removeFriend = (user_id: number, friend_id: number) => {
     friend_id: String(friend_id)
   });
   return axios.post(`${API_BASE}/remove_friend?${params.toString()}`);
+};
+
+export const getFriendsList = (user_id: number) => {
+  const params = new URLSearchParams({ user_id: String(user_id) });
+  return axios.get(`${API_BASE}/get_friends_list?${params.toString()}`);
 };
 
  
