@@ -20,6 +20,8 @@ export default function SamePathScreen() {
   const [schedule, setSchedule] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [pendingRequests, setPendingRequests] = useState(0);
+  const [friendsFree, setFriendsFree] = useState<{ [friendId: number]: { [dayIdx: number]: [number, number][] } }>({});
+  const [todayPlan, setTodayPlan] = useState<Array<{ type: 'class' | 'free'; start: number; end: number; data?: any; overlapCount?: number }>>([]);
 
   useEffect(() => {
     const fetchSchedule = async () => {
@@ -70,6 +72,150 @@ export default function SamePathScreen() {
   useEffect(() => {
     fetchPending();
   }, [isFocused, fetchPending]);
+
+  // Helpers for time/day parsing
+  const timeStringToMinutes = (time: string) => {
+    const match = time?.trim()?.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM|am|pm)?$/);
+    if (!match) return NaN;
+    let hours = parseInt(match[1], 10);
+    const mins = match[2] ? parseInt(match[2], 10) : 0;
+    const ampm = match[3]?.toLowerCase();
+    if (ampm === 'pm' && hours < 12) hours += 12;
+    if (ampm === 'am' && hours === 12) hours = 0;
+    return hours * 60 + mins;
+  };
+  const parseDays = (daysStr: string): number[] => {
+    if (!daysStr) return [];
+    const s = daysStr.replace(/\s+/g, '').toUpperCase();
+    const result: number[] = [];
+    let i = 0;
+    while (i < s.length) {
+      if (s.startsWith('TH', i)) { result.push(4); i += 2; continue; }
+      if (s.startsWith('SA', i)) { result.push(6); i += 2; continue; }
+      if (s.startsWith('SU', i)) { result.push(0); i += 2; continue; }
+      const c = s[i];
+      if (c === 'M') result.push(1);
+      else if (c === 'T') result.push(2);
+      else if (c === 'W') result.push(3);
+      else if (c === 'F') result.push(5);
+      else if (c === 'S') result.push(6);
+      i += 1;
+    }
+    return Array.from(new Set(result)).sort();
+  };
+  const START_MINUTES = 6 * 60;
+  const END_MINUTES = 23 * 60;
+  const intersectIntervals = (a: [number, number][], b: [number, number][]) => {
+    const res: [number, number][] = [];
+    let i = 0, j = 0;
+    const sa = a.slice().sort((x, y) => x[0] - y[0]);
+    const sb = b.slice().sort((x, y) => x[0] - y[0]);
+    while (i < sa.length && j < sb.length) {
+      const [aS, aE] = sa[i];
+      const [bS, bE] = sb[j];
+      const start = Math.max(aS, bS);
+      const end = Math.min(aE, bE);
+      if (end > start) res.push([start, end]);
+      if (aE < bE) i++; else j++;
+    }
+    return res;
+  };
+
+  // Fetch friends' free intervals once
+  useEffect(() => {
+    (async () => {
+      try {
+        const user_id = await AsyncStorage.getItem('user_id');
+        if (!user_id) return;
+        const friendsResp = await ApiService.getFriendsList(Number(user_id));
+        const accepted = (friendsResp.data?.friends || []).filter((f: any) => (f.status === 'accepted' || f.status === 'friend'));
+        const map: { [friendId: number]: { [dayIdx: number]: [number, number][] } } = {};
+        for (const f of accepted) {
+          const fid = Number(f.id ?? f.user_id);
+          if (!fid) continue;
+          try {
+            const schResp = await ApiService.getSchedule(fid);
+            const scheduleArr = schResp.data?.schedule || [];
+            // build free intervals per day for friend
+            const perDay: { [dayIdx: number]: [number, number][] } = { 0: [],1: [],2: [],3: [],4: [],5: [],6: [] } as any;
+            const dayToBusy: { [dayIdx: number]: [number, number][] } = { 0: [],1: [],2: [],3: [],4: [],5: [],6: [] } as any;
+            for (const ev of scheduleArr) {
+              const days = parseDays(ev.days || ev.day || '');
+              const parts = String(ev.time || '').split('-');
+              if (parts.length !== 2) continue;
+              const s = timeStringToMinutes(parts[0]);
+              const e = timeStringToMinutes(parts[1]);
+              if (isNaN(s) || isNaN(e)) continue;
+              days.forEach(d => { dayToBusy[d].push([Math.max(s, START_MINUTES), Math.min(e, END_MINUTES)]); });
+            }
+            for (let d = 0; d < 7; d++) {
+              const busy = (dayToBusy[d] || []).sort((a,b)=>a[0]-b[0]);
+              let free: [number, number][] = [];
+              let prev = START_MINUTES;
+              for (const [s,e] of busy) { if (s>prev) free.push([prev,s]); prev=Math.max(prev,e); }
+              if (prev<END_MINUTES) free.push([prev, END_MINUTES]);
+              perDay[d] = free;
+            }
+            map[fid] = perDay;
+          } catch {}
+        }
+        setFriendsFree(map);
+      } catch {}
+    })();
+  }, []);
+
+  // Build today's plan from schedule + free + overlaps
+  useEffect(() => {
+    const buildPlan = async () => {
+      // Determine today index (0=Sun)
+      const todayIdx = new Date().getDay();
+      // Build today's class intervals
+      const busy: Array<{ start: number; end: number; item: any }> = [];
+      for (const ev of schedule) {
+        const days = parseDays(ev.days || ev.day || '');
+        if (!days.includes(todayIdx)) continue;
+        const parts = String(ev.time || '').split('-');
+        if (parts.length !== 2) continue;
+        const s = timeStringToMinutes(parts[0]);
+        const e = timeStringToMinutes(parts[1]);
+        if (isNaN(s) || isNaN(e)) continue;
+        busy.push({ start: s, end: e, item: ev });
+      }
+      busy.sort((a,b)=>a.start-b.start);
+      // Free intervals
+      const free: [number, number][] = [];
+      let prev = START_MINUTES;
+      for (const b of busy) { if (b.start>prev) free.push([prev, b.start]); prev=Math.max(prev,b.end); }
+      if (prev<END_MINUTES) free.push([prev, END_MINUTES]);
+      // From now to end of day
+      const now = new Date();
+      const nowMin = now.getHours()*60 + now.getMinutes();
+      const plan: Array<{ type:'class'|'free'; start:number; end:number; data?:any; overlapCount?:number }> = [];
+      // Merge busy and free into sequence
+      let fi = 0, bi = 0;
+      const pushIfAfterNow = (entry:any) => { if (entry.end > nowMin) { if (entry.start < nowMin) entry.start = nowMin; plan.push(entry); } };
+      while (fi < free.length || bi < busy.length) {
+        const f = fi < free.length ? free[fi] : null;
+        const b = bi < busy.length ? busy[bi] : null;
+        if (f && (!b || f[0] <= b.start)) { pushIfAfterNow({ type:'free', start:f[0], end:f[1] }); fi++; }
+        else if (b) { pushIfAfterNow({ type:'class', start:b.start, end:b.end, data:b.item }); bi++; }
+      }
+      // Compute friend overlap count for free entries
+      const ff = Object.values(friendsFree);
+      const withOverlap = plan.map(entry => {
+        if (entry.type !== 'free') return entry;
+        let count = 0;
+        for (const friend of ff) {
+          const fFree = friend?.[todayIdx] || [];
+          const overlaps = intersectIntervals([[entry.start, entry.end]], fFree);
+          if (overlaps.length) count++;
+        }
+        return { ...entry, overlapCount: count };
+      });
+      setTodayPlan(withOverlap);
+    };
+    buildPlan();
+  }, [schedule, friendsFree]);
 
   const getNextClass = () => {
     if (!schedule.length) return null;
@@ -169,6 +315,43 @@ export default function SamePathScreen() {
               <Text style={styles.noClassText}>No more classes today!</Text>
               <Text style={styles.noClassSubtext}>You have free time! Explore campus or connect with friends.</Text>
             </View>
+          )}
+        </View>
+
+        {/* Today's Plan */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Ionicons name="today" size={20} color="#6366f1" />
+            <Text style={styles.sectionTitle}>Today's Plan</Text>
+          </View>
+          {todayPlan.length === 0 ? (
+            <View style={styles.noClassCard}>
+              <Text style={styles.noClassText}>No items for the rest of today</Text>
+            </View>
+          ) : (
+            todayPlan.map((item, idx) => (
+              <View key={`plan-${idx}`} style={[styles.planItem, item.type === 'free' ? styles.planFree : styles.planClass]}>
+                <View style={styles.planTimeCol}>
+                  <Text style={styles.planTime}>{`${Math.floor(item.start/60)}:${(item.start%60).toString().padStart(2,'0')}`}</Text>
+                  <Text style={styles.planTime}>{`${Math.floor(item.end/60)}:${(item.end%60).toString().padStart(2,'0')}`}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  {item.type === 'class' ? (
+                    <>
+                      <Text style={styles.planTitle}>{item.data?.courseName || item.data?.name || 'Class'}</Text>
+                      <Text style={styles.planSub}>{item.data?.location || item.data?.room || ''}</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.planTitle}>Free time</Text>
+                      <Text style={styles.planSub}>
+                        {item.overlapCount ? `${item.overlapCount} friend${item.overlapCount>1?'s':''} also free` : 'No overlaps'}
+                      </Text>
+                    </>
+                  )}
+                </View>
+              </View>
+            ))
           )}
         </View>
 
@@ -519,5 +702,43 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 10,
     fontWeight: '700',
+  },
+  planItem: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  planFree: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#6366f1',
+  },
+  planClass: {
+    borderLeftWidth: 4,
+    borderLeftColor: '#94a3b8',
+  },
+  planTimeCol: {
+    width: 64,
+    marginRight: 12,
+  },
+  planTime: {
+    fontSize: 12,
+    color: '#64748b',
+  },
+  planTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  planSub: {
+    fontSize: 13,
+    color: '#64748b',
+    marginTop: 2,
   },
 }); 
