@@ -56,6 +56,14 @@ export default function SamePathScreen() {
 
   const isFocused = useIsFocused();
 
+  const formatTime12Hour = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    const h12 = hours === 0 ? 12 : (hours > 12 ? hours - 12 : hours);
+    const ampm = hours < 12 ? 'AM' : 'PM';
+    return `${h12}:${mins.toString().padStart(2, '0')} ${ampm}`;
+  };
+
   const fetchPending = useCallback(async () => {
       try {
         const user_id = await AsyncStorage.getItem('user_id');
@@ -205,10 +213,18 @@ export default function SamePathScreen() {
       const withOverlap = plan.map(entry => {
         if (entry.type !== 'free') return entry;
         let count = 0;
+        const userFreeInterval: [number, number][] = [[entry.start, entry.end]];
         for (const friend of ff) {
           const fFree = friend?.[todayIdx] || [];
-          const overlaps = intersectIntervals([[entry.start, entry.end]], fFree);
-          if (overlaps.length) count++;
+          if (fFree.length === 0) continue;
+          // Check if any of friend's free intervals overlap with this user's free interval
+          for (const fInterval of fFree) {
+            const overlaps = intersectIntervals(userFreeInterval, [fInterval]);
+            if (overlaps.length > 0) {
+              count++;
+              break; // Only count each friend once per free block
+            }
+          }
         }
         return { ...entry, overlapCount: count };
       });
@@ -285,8 +301,8 @@ export default function SamePathScreen() {
             todayPlan.map((item, idx) => (
               <View key={`timeline-${idx}`} style={[styles.planItem, item.type === 'free' ? styles.planFree : styles.planClass]}>
                 <View style={styles.planTimeCol}>
-                  <Text style={styles.planTime}>{`${Math.floor(item.start/60)}:${(item.start%60).toString().padStart(2,'0')}`}</Text>
-                  <Text style={styles.planTime}>{`${Math.floor(item.end/60)}:${(item.end%60).toString().padStart(2,'0')}`}</Text>
+                  <Text style={styles.planTime}>{formatTime12Hour(item.start)}</Text>
+                  <Text style={styles.planTime}>{formatTime12Hour(item.end)}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
                   {item.type === 'class' ? (
