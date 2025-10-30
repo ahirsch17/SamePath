@@ -224,11 +224,13 @@ export default function SamePathScreen() {
         if (f && (!b || f[0] <= b.start)) { pushIfAfterNow({ type:'free', start:f[0], end:f[1] }); fi++; }
         else if (b) { pushIfAfterNow({ type:'class', start:b.start, end:b.end, data:b.item }); bi++; }
       }
-      // Compute friend overlap count for free entries
+      // Compute friend overlap count and actual overlap time for free entries
       const ff = Object.values(friendsFree);
       const withOverlap = plan.map(entry => {
         if (entry.type !== 'free') return entry;
         let count = 0;
+        let overlapStart = null;
+        let overlapEnd = null;
         const userFreeInterval: [number, number][] = [[entry.start, entry.end]];
         for (const friend of ff) {
           const fFree = friend?.[todayIdx] || [];
@@ -238,11 +240,16 @@ export default function SamePathScreen() {
             const overlaps = intersectIntervals(userFreeInterval, [fInterval]);
             if (overlaps.length > 0) {
               count++;
+              // Track the actual overlapping time range (union of all overlaps)
+              for (const [ovStart, ovEnd] of overlaps) {
+                if (overlapStart === null || ovStart < overlapStart) overlapStart = ovStart;
+                if (overlapEnd === null || ovEnd > overlapEnd) overlapEnd = ovEnd;
+              }
               break; // Only count each friend once per free block
             }
           }
         }
-        return { ...entry, overlapCount: count };
+        return { ...entry, overlapCount: count, overlapStart, overlapEnd };
       });
       setTodayPlan(withOverlap);
     };
@@ -329,12 +336,20 @@ export default function SamePathScreen() {
                   ) : (
                     <>
                       <Text style={styles.planTitle}>Free time</Text>
-                      <Text style={styles.planSub}>
-                        {item.overlapCount ? `${item.overlapCount} friend${item.overlapCount>1?'s':''} also free` : 'No overlaps'}
-                      </Text>
-                      <Text style={[styles.planSub, { fontSize: 11, marginTop: 2, opacity: 0.7 }]}>
-                        {formatTimeRange(item.start, item.end)}
-                      </Text>
+                      {item.overlapCount && item.overlapStart !== null && item.overlapEnd !== null ? (
+                        <>
+                          <Text style={styles.planSub}>
+                            {item.overlapCount} friend{item.overlapCount>1?'s':''} also free
+                          </Text>
+                          <Text style={[styles.planSub, { fontSize: 11, marginTop: 2, opacity: 0.7 }]}>
+                            Overlap: {formatTime12Hour(item.overlapStart)} - {formatTime12Hour(item.overlapEnd)}
+                          </Text>
+                        </>
+                      ) : (
+                        <Text style={[styles.planSub, { fontSize: 11, marginTop: 2, opacity: 0.7 }]}>
+                          {formatTimeRange(item.start, item.end)}
+                        </Text>
+                      )}
                     </>
                   )}
                 </View>
