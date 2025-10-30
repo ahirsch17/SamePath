@@ -29,27 +29,76 @@ export default function NetworkScreen() {
         return;
       }
       try {
-        const response = await ApiService.getAvailableCourses(Number(user_id));
-        // Handle the new API response format
-        if (response.data && Array.isArray(response.data)) {
-          setClassGroups(response.data);
-        } else if (response.data && response.data.courses) {
-          setClassGroups(response.data.courses);
-        } else {
-          setClassGroups([]);
+        const response = await ApiService.getClassGroups(Number(user_id));
+        // Response format: {class_groups: [{department, number, groups: [{group_id, name, ...}]}]}
+        const classGroupsList = response.data?.class_groups || [];
+        const flattened: any[] = [];
+        for (const classGroup of classGroupsList) {
+          for (const group of (classGroup.groups || [])) {
+            flattened.push({
+              group_id: group.group_id,
+              name: group.name,
+              department: classGroup.department,
+              course_number: classGroup.number,
+              courseName: classGroup.display_name || `${classGroup.department} ${classGroup.number}`,
+              member_count: group.member_count || 0,
+              is_member: group.is_member || false,
+              type: group.type
+            });
+          }
         }
+        setClassGroups(flattened);
       } catch (error) {
         console.log('Error fetching class groups:', error);
         Alert.alert('Error', 'Failed to fetch class groups.');
+        setClassGroups([]);
       }
       setLoading(false);
     };
     fetchGroups();
   }, []);
 
-  const toggleGroupMembership = (crn: string) => {
-    // TODO: Integrate with backend for join/leave
-    Alert.alert('Group Updated', 'Join/leave functionality coming soon.');
+  const toggleGroupMembership = async (groupId: number, isMember: boolean) => {
+    const user_id = await AsyncStorage.getItem('user_id');
+    if (!user_id) {
+      Alert.alert('Error', 'User not logged in.');
+      return;
+    }
+    try {
+      if (isMember) {
+        await ApiService.leaveGroup(Number(user_id), groupId);
+        Alert.alert('Success', 'Left group successfully.');
+      } else {
+        await ApiService.joinGroup(Number(user_id), groupId);
+        Alert.alert('Success', 'Joined group successfully.');
+      }
+      // Refresh groups
+      const user_id2 = await AsyncStorage.getItem('user_id');
+      if (user_id2) {
+        const response = await ApiService.getClassGroups(Number(user_id2));
+        const classGroupsList = response.data?.class_groups || [];
+        const flattened: any[] = [];
+        for (const classGroup of classGroupsList) {
+          for (const group of (classGroup.groups || [])) {
+            flattened.push({
+              group_id: group.group_id,
+              name: group.name,
+              department: classGroup.department,
+              course_number: classGroup.number,
+              courseName: classGroup.display_name || `${classGroup.department} ${classGroup.number}`,
+              member_count: group.member_count || 0,
+              is_member: group.is_member || false,
+              type: group.type
+            });
+          }
+        }
+        setClassGroups(flattened);
+      }
+    } catch (error: any) {
+      console.log('Toggle group membership error:', error);
+      const msg = error.response?.data?.error || 'Failed to update group membership.';
+      Alert.alert('Error', msg);
+    }
   };
 
   const navigateToFriends = () => {
@@ -98,29 +147,31 @@ export default function NetworkScreen() {
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.sectionTitle}>Available Class Groups</Text>
+        <Text style={styles.sectionTitle}>Class Groups</Text>
         {loading ? (
           <Text>Loading...</Text>
         ) : classGroups.map((group) => (
-          <View key={group.crn || group.CRN} style={styles.groupCard}>
+          <View key={group.group_id} style={styles.groupCard}>
             <View style={styles.groupInfo}>
               <Text style={styles.courseCode}>
-                {group.subject || group.department} {group.courseNumber || group.number}
+                {group.department} {group.course_number}
               </Text>
               <Text style={styles.courseName}>
-                {group.courseName || group.name || 'Course'}
+                {group.name || group.courseName || 'Group'}
               </Text>
-              <Text style={styles.crnText}>CRN: {group.crn || group.CRN}</Text>
+              <Text style={styles.crnText}>Type: {group.type || 'Study Group'}</Text>
               <View style={styles.memberInfo}>
                 <Ionicons name="people-outline" size={16} color="#666" />
-                <Text style={styles.memberCount}>{group.memberCount || 0} members</Text>
+                <Text style={styles.memberCount}>{group.member_count || 0} members</Text>
               </View>
             </View>
             <TouchableOpacity
-              style={styles.joinButton}
-              onPress={() => toggleGroupMembership(group.crn || group.CRN)}
+              style={group.is_member ? styles.leaveButton : styles.joinButton}
+              onPress={() => toggleGroupMembership(group.group_id, group.is_member)}
             >
-              <Text style={styles.joinButtonText}>Join</Text>
+              <Text style={group.is_member ? styles.leaveButtonText : styles.joinButtonText}>
+                {group.is_member ? 'Leave' : 'Join'}
+              </Text>
             </TouchableOpacity>
           </View>
         ))}

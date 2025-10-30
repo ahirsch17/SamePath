@@ -130,4 +130,25 @@ export const getUserById = (user_id: number) => {
   return axios.get(`${API_BASE}/get_user_by_id?${params.toString()}`);
 };
 
+export const getClassGroups = (user_id: number) => {
+  const params = new URLSearchParams({ user_id: String(user_id) });
+  return axios.get(`${API_BASE}/get_class_groups?${params.toString()}`);
+};
+
+export const joinGroup = (user_id: number, group_id: number) => {
+  const params = new URLSearchParams({ 
+    user_id: String(user_id),
+    group_id: String(group_id)
+  });
+  return axios.post(`${API_BASE}/join_group?${params.toString()}`);
+};
+
+export const leaveGroup = (user_id: number, group_id: number) => {
+  const params = new URLSearchParams({ 
+    user_id: String(user_id),
+    group_id: String(group_id)
+  });
+  return axios.post(`${API_BASE}/leave_group?${params.toString()}`);
+};
+
  

@@ -217,14 +217,6 @@ export default function SamePathScreen() {
     buildPlan();
   }, [schedule, friendsFree]);
 
-  const getNextClass = () => {
-    if (!schedule.length) return null;
-    // Assume schedule is sorted by time, or sort if needed
-    // For demo, just return the first class
-    return schedule[0];
-  };
-
-  const nextClass = getNextClass();
 
   return (
     <View style={styles.container}>
@@ -274,63 +266,24 @@ export default function SamePathScreen() {
           <Text style={styles.welcomeSubtext}>Ready to make the most of your day?</Text>
         </View>
 
-        {/* Next Class Section */}
+        {/* Today's Timeline - Integrated */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Ionicons name="time" size={20} color="#6366f1" />
-            <Text style={styles.sectionTitle}>Next Class</Text>
+            <Text style={styles.sectionTitle}>Today's Timeline</Text>
           </View>
           {loading ? (
             <View style={styles.loadingCard}>
               <Ionicons name="refresh" size={24} color="#6366f1" />
               <Text style={styles.loadingText}>Loading your schedule...</Text>
             </View>
-          ) : nextClass ? (
-            <View style={styles.nextClassCard}>
-              <View style={styles.classHeader}>
-                <View style={styles.classIcon}>
-                  <Ionicons name="school" size={20} color="#fff" />
-                </View>
-                <View style={styles.classInfo}>
-                  <Text style={styles.nextClassTitle}>
-                    {nextClass.courseName || nextClass.name || nextClass.title || 'Course'}
-                  </Text>
-                  <Text style={styles.nextClassTime}>
-                    {nextClass.time} • {nextClass.days || nextClass.day || 'TBD'}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.classLocation}>
-                <Ionicons name="location" size={16} color="#6366f1" />
-                <Text style={styles.nextClassLocation}>
-                  {nextClass.location || nextClass.room || 'Location TBD'}
-                </Text>
-              </View>
-            </View>
-          ) : (
-            <View style={styles.noClassCard}>
-              <View style={styles.noClassIcon}>
-                <Ionicons name="checkmark-circle" size={48} color="#10b981" />
-              </View>
-              <Text style={styles.noClassText}>No more classes today!</Text>
-              <Text style={styles.noClassSubtext}>You have free time! Explore campus or connect with friends.</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Today's Plan */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Ionicons name="today" size={20} color="#6366f1" />
-            <Text style={styles.sectionTitle}>Today's Plan</Text>
-          </View>
-          {todayPlan.length === 0 ? (
+          ) : todayPlan.length === 0 ? (
             <View style={styles.noClassCard}>
               <Text style={styles.noClassText}>No items for the rest of today</Text>
             </View>
           ) : (
             todayPlan.map((item, idx) => (
-              <View key={`plan-${idx}`} style={[styles.planItem, item.type === 'free' ? styles.planFree : styles.planClass]}>
+              <View key={`timeline-${idx}`} style={[styles.planItem, item.type === 'free' ? styles.planFree : styles.planClass]}>
                 <View style={styles.planTimeCol}>
                   <Text style={styles.planTime}>{`${Math.floor(item.start/60)}:${(item.start%60).toString().padStart(2,'0')}`}</Text>
                   <Text style={styles.planTime}>{`${Math.floor(item.end/60)}:${(item.end%60).toString().padStart(2,'0')}`}</Text>
@@ -339,7 +292,7 @@ export default function SamePathScreen() {
                   {item.type === 'class' ? (
                     <>
                       <Text style={styles.planTitle}>{item.data?.courseName || item.data?.name || 'Class'}</Text>
-                      <Text style={styles.planSub}>{item.data?.location || item.data?.room || ''}</Text>
+                      <Text style={styles.planSub}>{item.data?.location || item.data?.room || 'Location TBD'}</Text>
                     </>
                   ) : (
                     <>

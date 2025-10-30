@@ -338,25 +338,6 @@ export default function FreeTimeScreen() {
                     )}
                   </View>
                 </View>
-                
-                {/* Free time details */}
-                {intervals[dayIdx].free.length > 0 && (
-                  <View style={styles.freeTimeDetails}>
-                    <Text style={styles.detailsTitle}>Available Times:</Text>
-                    {intervals[dayIdx].free.map(([start, end], i) => (
-                      <TouchableOpacity
-                        key={i}
-                        style={styles.timeSlot}
-                        onPress={() => setActivityModal({ dayIdx, start, end })}
-                      >
-                        <Text style={styles.timeSlotText}>
-                          {`${Math.floor(start / 60)}:${(start % 60).toString().padStart(2, '0')} - ${Math.floor(end / 60)}:${(end % 60).toString().padStart(2, '0')}`}
-                        </Text>
-                        <Ionicons name="add-circle" size={20} color="#6366f1" />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
               </View>
             ))}
           </>
