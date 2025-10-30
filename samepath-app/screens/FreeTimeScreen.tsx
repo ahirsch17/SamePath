@@ -11,8 +11,35 @@ const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 
 const ACTIVITIES = ['Gym', 'Rest/Nap', 'Eat', 'Study', 'Read', 'Religion', 'Social', 'Other'];
 
 const timeStringToMinutes = (time: string) => {
-  const [h, m] = time.split(':').map(Number);
-  return h * 60 + (m || 0);
+  // Handles "8:00", "8:00 AM", "8:00PM"
+  const match = time.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM|am|pm)?$/);
+  if (!match) return NaN;
+  let hours = parseInt(match[1], 10);
+  const mins = match[2] ? parseInt(match[2], 10) : 0;
+  const ampm = match[3]?.toLowerCase();
+  if (ampm === 'pm' && hours < 12) hours += 12;
+  if (ampm === 'am' && hours === 12) hours = 0;
+  return hours * 60 + mins;
+};
+
+const parseDays = (daysStr: string): number[] => {
+  if (!daysStr) return [];
+  const s = daysStr.replace(/\s+/g, '').toUpperCase();
+  const result: number[] = [];
+  let i = 0;
+  while (i < s.length) {
+    if (s.startsWith('TH', i)) { result.push(4); i += 2; continue; }
+    if (s.startsWith('SA', i)) { result.push(6); i += 2; continue; }
+    if (s.startsWith('SU', i)) { result.push(0); i += 2; continue; }
+    const c = s[i];
+    if (c === 'M') result.push(1);
+    else if (c === 'T') result.push(2);
+    else if (c === 'W') result.push(3);
+    else if (c === 'F') result.push(5);
+    else if (c === 'S') result.push(6); // fallback Sat
+    i += 1;
+  }
+  return Array.from(new Set(result)).sort();
 };
 
 const getDailyIntervals = (schedule: { days: string; time: string }[]) => {
@@ -21,29 +48,23 @@ const getDailyIntervals = (schedule: { days: string; time: string }[]) => {
     dayIntervals[i] = { scheduled: [], free: [] };
   }
   schedule.forEach(event => {
-    const dayMap: { [key: string]: number } = { S: 0, M: 1, T: 2, W: 3, TH: 4, F: 5, SA: 6 };
-    const daysArr = event.days.split(' ').filter(day => day.trim() !== '');
+    const days = parseDays(event.days || '');
     let start = START_MINUTES, end = START_MINUTES;
     if (event.time) {
-      const match = event.time.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
-      if (match) {
-        start = parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
-        end = parseInt(match[3], 10) * 60 + parseInt(match[4], 10);
-      } else {
-        const parts = event.time.split('-');
-        if (parts.length === 2) {
-          start = timeStringToMinutes(parts[0]);
-          end = timeStringToMinutes(parts[1]);
+      // Flexible time parsing: "8:00-8:50", "8:00 AM - 8:50 PM"
+      const parts = event.time.split('-');
+      if (parts.length === 2) {
+        const sMin = timeStringToMinutes(parts[0]);
+        const eMin = timeStringToMinutes(parts[1]);
+        if (!isNaN(sMin) && !isNaN(eMin)) {
+          start = sMin; end = eMin;
         }
       }
     }
-    daysArr.forEach(dayStr => {
-      let dayIdx = dayMap[dayStr] ?? -1;
-      if (dayIdx >= 0) {
-        const s = Math.max(start, START_MINUTES);
-        const e = Math.min(end, END_MINUTES);
-        if (e > s) dayIntervals[dayIdx].scheduled.push([s, e]);
-      }
+    days.forEach(dayIdx => {
+      const s = Math.max(start, START_MINUTES);
+      const e = Math.min(end, END_MINUTES);
+      if (e > s) dayIntervals[dayIdx].scheduled.push([s, e]);
     });
   });
   for (let i = 0; i < 7; i++) {
@@ -65,6 +86,7 @@ export default function FreeTimeScreen() {
   const [activityModal, setActivityModal] = useState<{ dayIdx: number; start: number; end: number } | null>(null);
   const [activityPrefs, setActivityPrefs] = useState<Record<string, Record<string, boolean>>>({});
   const [schedule, setSchedule] = useState<any[]>([]);
+  const [friendsFree, setFriendsFree] = useState<{ [friendId: number]: { [dayIdx: number]: [number, number][] } }>({});
   const [loading, setLoading] = useState(true);
   const barRefs = useRef<(View | null)[]>([]);
 
@@ -91,6 +113,28 @@ export default function FreeTimeScreen() {
       try {
         const raw = await AsyncStorage.getItem('free_time_activity_prefs');
         if (raw) setActivityPrefs(JSON.parse(raw));
+      } catch {}
+    })();
+    // fetch friends' schedules to compute free overlaps
+    (async () => {
+      try {
+        const user_id = await AsyncStorage.getItem('user_id');
+        if (!user_id) return;
+        const friendsResp = await ApiService.getFriendsList(Number(user_id));
+        const accepted = (friendsResp.data?.friends || []).filter((f: any) => (f.status === 'accepted' || f.status === 'friend'));
+        const map: { [friendId: number]: { [dayIdx: number]: [number, number][] } } = {};
+        for (const f of accepted) {
+          const fid = Number(f.id ?? f.user_id);
+          if (!fid) continue;
+          try {
+            const schResp = await ApiService.getSchedule(fid);
+            const free = getDailyIntervals(schResp.data?.schedule || []);
+            const perDay: { [dayIdx: number]: [number, number][] } = {};
+            for (let d = 0; d < 7; d++) perDay[d] = free[d].free;
+            map[fid] = perDay;
+          } catch {}
+        }
+        setFriendsFree(map);
       } catch {}
     })();
   }, []);
@@ -129,15 +173,34 @@ export default function FreeTimeScreen() {
   const intervals = getDailyIntervals(schedule);
 
   const getBlockKey = (dayIdx: number, start: number, end: number) => `${dayIdx}:${start}-${end}`;
-  const isActivitySelected = (key: string, activity: string) => !!activityPrefs[key]?.[activity];
+  // default selected unless explicitly turned off
+  const isActivitySelected = (key: string, activity: string) => activityPrefs[key]?.[activity] !== false;
   const toggleActivity = async (key: string, activity: string) => {
     setActivityPrefs(prev => {
       const next = { ...prev } as Record<string, Record<string, boolean>>;
       next[key] = next[key] ? { ...next[key] } : {};
-      next[key][activity] = !next[key][activity];
+      const current = next[key][activity];
+      // toggle between true and false, defaulting to true when undefined
+      next[key][activity] = !(current !== false);
       AsyncStorage.setItem('free_time_activity_prefs', JSON.stringify(next)).catch(() => {});
       return next;
     });
+  };
+
+  const intersectIntervals = (a: [number, number][], b: [number, number][]) => {
+    const res: [number, number][] = [];
+    let i = 0, j = 0;
+    const sa = a.slice().sort((x, y) => x[0] - y[0]);
+    const sb = b.slice().sort((x, y) => x[0] - y[0]);
+    while (i < sa.length && j < sb.length) {
+      const [aS, aE] = sa[i];
+      const [bS, bE] = sb[j];
+      const start = Math.max(aS, bS);
+      const end = Math.min(aE, bE);
+      if (end > start) res.push([start, end]);
+      if (aE < bE) i++; else j++;
+    }
+    return res;
   };
 
   return (
@@ -235,6 +298,27 @@ export default function FreeTimeScreen() {
                         />
                       );
                     })}
+
+                    {/* Friends overlap blocks (aggregate any friend) */}
+                    {(() => {
+                      const overlaps: [number, number][] = [];
+                      const myFree = intervals[dayIdx].free;
+                      // union of overlaps with any friend
+                      for (const fid of Object.keys(friendsFree)) {
+                        const friendFree = friendsFree[Number(fid)]?.[dayIdx] || [];
+                        overlaps.push(...intersectIntervals(myFree, friendFree));
+                      }
+                      return overlaps.map(([s, e]) => {
+                        const leftPct = ((s - START_MINUTES) / TOTAL_DAY_MINUTES) * 100;
+                        const widthPct = ((e - s) / TOTAL_DAY_MINUTES) * 100;
+                        return (
+                          <View
+                            key={`overlap-${s}-${e}`}
+                            style={[styles.overlapBlock, { left: `${leftPct}%`, width: `${widthPct}%` }]}
+                          />
+                        );
+                      });
+                    })()}
                     
                     {/* Time markers */}
                     <View style={styles.timeMarker}>
@@ -468,14 +552,21 @@ const styles = StyleSheet.create({
   scheduledBlock: {
     position: 'absolute',
     height: 24,
-    backgroundColor: '#94a3b8',
+    backgroundColor: '#cbd5e1',
     borderRadius: 12,
     top: 8,
   },
   freeBlock: {
     position: 'absolute',
     height: 24,
-    backgroundColor: '#f59e0b',
+    backgroundColor: 'rgba(99,102,241,0.25)',
+    borderRadius: 12,
+    top: 8,
+  },
+  overlapBlock: {
+    position: 'absolute',
+    height: 24,
+    backgroundColor: 'rgba(16,185,129,0.5)',
     borderRadius: 12,
     top: 8,
   },
