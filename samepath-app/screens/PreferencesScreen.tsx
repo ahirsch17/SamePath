@@ -16,7 +16,6 @@ export default function PreferencesScreen() {
   const [shareFreeTime, setShareFreeTime] = useState(true);
   const [showActivityPrefs, setShowActivityPrefs] = useState(false);
   const [notifications, setNotifications] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
 
   // Example handler for saving preferences
   const handleToggle = async (setter: (v: boolean) => void, value: boolean, key: string) => {
@@ -103,22 +102,6 @@ export default function PreferencesScreen() {
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Appearance</Text>
-          
-          <View style={styles.prefRow}>
-            <View style={styles.prefInfo}>
-              <Text style={styles.prefLabel}>Dark mode</Text>
-              <Text style={styles.prefDescription}>Switch to dark theme</Text>
-            </View>
-            <Switch 
-              value={darkMode} 
-              onValueChange={v => handleToggle(setDarkMode, v, 'darkMode')}
-              trackColor={{ false: '#e0e0e0', true: '#d67b32' }}
-              thumbColor={darkMode ? '#fff' : '#f4f3f4'}
-            />
-          </View>
-        </View>
       </View>
     </View>
   );

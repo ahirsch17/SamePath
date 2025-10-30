@@ -94,7 +94,6 @@ export default function FriendsScreen() {
 
     try {
       const response = await ApiService.acceptFriendRequest(Number(user_id), friendId);
-      Alert.alert('Success', 'Friend request accepted!');
       loadFriends(); // Refresh the list
     } catch (error: any) {
       console.log('Accept friend request error:', error);

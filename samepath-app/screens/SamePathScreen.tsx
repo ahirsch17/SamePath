@@ -59,9 +59,24 @@ export default function SamePathScreen() {
   const formatTime12Hour = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
+    if (mins === 0) {
+      const h12 = hours === 0 ? 12 : (hours > 12 ? hours - 12 : hours);
+      const ampm = hours < 12 ? 'AM' : 'PM';
+      return `${h12}:00 ${ampm}`;
+    }
     const h12 = hours === 0 ? 12 : (hours > 12 ? hours - 12 : hours);
     const ampm = hours < 12 ? 'AM' : 'PM';
     return `${h12}:${mins.toString().padStart(2, '0')} ${ampm}`;
+  };
+
+  const formatTimeRange = (start: number, end: number) => {
+    const totalMinutes = end - start;
+    if (totalMinutes >= 16 * 60) { // 16+ hours = most of day
+      return 'Most of the day';
+    }
+    const startTime = formatTime12Hour(start);
+    const endTime = formatTime12Hour(end);
+    return `${startTime} - ${endTime}`;
   };
 
   const fetchPending = useCallback(async () => {
@@ -129,8 +144,9 @@ export default function SamePathScreen() {
     return res;
   };
 
-  // Fetch friends' free intervals once
+  // Fetch friends' free intervals - refresh on focus
   useEffect(() => {
+    if (!isFocused) return;
     (async () => {
       try {
         const user_id = await AsyncStorage.getItem('user_id');
@@ -170,7 +186,7 @@ export default function SamePathScreen() {
         setFriendsFree(map);
       } catch {}
     })();
-  }, []);
+  }, [isFocused]);
 
   // Build today's plan from schedule + free + overlaps
   useEffect(() => {
@@ -315,6 +331,9 @@ export default function SamePathScreen() {
                       <Text style={styles.planTitle}>Free time</Text>
                       <Text style={styles.planSub}>
                         {item.overlapCount ? `${item.overlapCount} friend${item.overlapCount>1?'s':''} also free` : 'No overlaps'}
+                      </Text>
+                      <Text style={[styles.planSub, { fontSize: 11, marginTop: 2, opacity: 0.7 }]}>
+                        {formatTimeRange(item.start, item.end)}
                       </Text>
                     </>
                   )}
@@ -710,4 +729,5 @@ const styles = StyleSheet.create({
     color: '#64748b',
     marginTop: 2,
   },
+}); 
 }); 

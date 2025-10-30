@@ -282,24 +282,7 @@ export default function FreeTimeScreen() {
                       );
                     })}
                     
-                    {/* Free time blocks */}
-                    {intervals[dayIdx].free.map(([fStart, fEnd], i) => {
-                      const leftPct = ((fStart - START_MINUTES) / TOTAL_DAY_MINUTES) * 100;
-                      const widthPct = ((fEnd - fStart) / TOTAL_DAY_MINUTES) * 100;
-                      return (
-                        <TouchableOpacity
-                          key={`free-${fStart}`}
-                          style={[styles.freeBlock, {
-                            left: `${leftPct}%`,
-                            width: `${widthPct}%`,
-                          }]}
-                          activeOpacity={0.8}
-                          onPress={() => setActivityModal({ dayIdx, start: fStart, end: fEnd })}
-                        />
-                      );
-                    })}
-
-                    {/* Friends overlap blocks (aggregate any friend) */}
+                    {/* Friends overlap blocks (aggregate any friend) - render first so free blocks are on top */}
                     {(() => {
                       const overlaps: [number, number][] = [];
                       const myFree = intervals[dayIdx].free;
@@ -314,11 +297,30 @@ export default function FreeTimeScreen() {
                         return (
                           <View
                             key={`overlap-${s}-${e}`}
-                            style={[styles.overlapBlock, { left: `${leftPct}%`, width: `${widthPct}%` }]}
+                            style={[styles.overlapBlock, { left: `${leftPct}%`, width: `${widthPct}%`, zIndex: 1 }]}
+                            pointerEvents="none"
                           />
                         );
                       });
                     })()}
+
+                    {/* Free time blocks - render on top for clickability */}
+                    {intervals[dayIdx].free.map(([fStart, fEnd], i) => {
+                      const leftPct = ((fStart - START_MINUTES) / TOTAL_DAY_MINUTES) * 100;
+                      const widthPct = ((fEnd - fStart) / TOTAL_DAY_MINUTES) * 100;
+                      return (
+                        <TouchableOpacity
+                          key={`free-${fStart}`}
+                          style={[styles.freeBlock, {
+                            left: `${leftPct}%`,
+                            width: `${widthPct}%`,
+                            zIndex: 2,
+                          }]}
+                          activeOpacity={0.8}
+                          onPress={() => setActivityModal({ dayIdx, start: fStart, end: fEnd })}
+                        />
+                      );
+                    })}
                     
                     {/* Time markers */}
                     <View style={styles.timeMarker}>
